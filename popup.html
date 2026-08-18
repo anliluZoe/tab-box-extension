@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <input id="search" type="search" placeholder="搜索标签页（标题 / 网址 / 域名）" autofocus autocomplete="off" />
+  </header>
+
+  <div class="toolbar">
+    <button id="group-btn" class="primary" title="把每个窗口内相同域名的标签页合并成一个标签组">按域名分组</button>
+    <button id="ungroup-btn" title="解散所有标签组">取消分组</button>
+    <select id="sort">
+      <option value="default">按窗口顺序</option>
+      <option value="least">访问最少优先</option>
+      <option value="stale">最久未用优先</option>
+    </select>
+    <label class="filter"><input type="checkbox" id="unvisited-only" />仅今日未访问</label>
+  </div>
+
+  <div id="summary"></div>
+
+  <ul id="tab-list"></ul>
+
+  <footer>
+    <button id="close-unvisited" class="danger">关闭今日未访问的标签页</button>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

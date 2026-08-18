@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "标签页管家",
+  "description": "按域名合并标签页、快速搜索已打开的网页、统计每日访问次数，帮你清理很少访问的标签页。",
+  "version": "1.0.0",
+  "permissions": ["tabs", "tabGroups", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "标签页管家"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+T"
+      },
+      "description": "打开标签页管家"
+    }
+  }
+}
