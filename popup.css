@@ -38,8 +38,17 @@ header {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 0 12px 8px;
+  padding: 0 12px 6px;
   flex-wrap: wrap;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px 8px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 button {
