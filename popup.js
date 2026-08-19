@@ -14,8 +14,6 @@ const supportsTabGroups = Boolean(
   chrome.tabGroups && chrome.tabs.group && chrome.tabs.ungroup
 );
 
-const GROUP_COLORS = ['blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'];
-
 let allTabs = [];
 let todayStats = {};
 let lastActive = {};
@@ -23,6 +21,8 @@ let collapsedHosts = new Set();
 let selectedIndex = 0;
 let confirmTimer = null;
 let confirmTarget = null;
+let renderTimer = 0;
+let cachedItems = [];
 
 if (!supportsTabGroups) {
   groupBtn.disabled = true;
@@ -50,7 +50,8 @@ function appendHighlighted(el, text, keyword) {
   }
   const lower = text.toLowerCase();
   let start = 0;
-  while (start < text.length) {
+  let matchCount = 0;
+  while (start < text.length && matchCount < 8) {
     const idx = lower.indexOf(keyword, start);
     if (idx === -1) {
       el.append(text.slice(start));
@@ -61,16 +62,41 @@ function appendHighlighted(el, text, keyword) {
     mark.textContent = text.slice(idx, idx + keyword.length);
     el.append(mark);
     start = idx + keyword.length;
+    matchCount += 1;
   }
+  if (start < text.length) el.append(text.slice(start));
+}
+
+function formatAgo(ago) {
+  if (ago < 60000) return '刚刚';
+  if (ago < 3600000) return `${Math.floor(ago / 60000)} 分钟前`;
+  if (ago < 86400000) return `${Math.floor(ago / 3600000)} 小时前`;
+  return `${Math.floor(ago / 86400000)} 天前`;
+}
+
+function scheduleRender(immediate) {
+  if (immediate) {
+    if (renderTimer) {
+      clearTimeout(renderTimer);
+      renderTimer = 0;
+    }
+    render();
+    return;
+  }
+  if (renderTimer) return;
+  renderTimer = setTimeout(() => {
+    renderTimer = 0;
+    render();
+  }, 80);
 }
 
 function visibleTabItems() {
-  return [...tabList.querySelectorAll('.domain-group:not(.collapsed) .tab-item')];
+  return tabList.querySelectorAll('.domain-group:not(.collapsed) .tab-item');
 }
 
 function applySelection() {
   const items = visibleTabItems();
-  if (items.length === 0) return;
+  if (!items.length) return;
   selectedIndex = Math.max(0, Math.min(selectedIndex, items.length - 1));
   items.forEach((el, i) => el.classList.toggle('selected', i === selectedIndex));
   items[selectedIndex].scrollIntoView({ block: 'nearest' });
@@ -93,12 +119,9 @@ async function reload() {
     autoGroup.checked = prefs.autoGroup !== false;
     autoDedupe.checked = prefs.autoDedupe !== false;
     sortSelect.dataset.ready = '1';
-    unvisitedOnly.dataset.ready = '1';
-    autoGroup.dataset.ready = '1';
-    autoDedupe.dataset.ready = '1';
   }
 
-  render();
+  scheduleRender(true);
 }
 
 function savePrefs() {
@@ -112,95 +135,102 @@ function savePrefs() {
   });
 }
 
-function filteredItems() {
+function buildViewModel() {
   const keyword = searchInput.value.trim().toLowerCase();
-
+  const onlyUnvisited = unvisitedOnly.checked;
   const urlCounts = new Map();
+  let unvisitedTotal = 0;
+  let dupeTotal = 0;
+
   for (const tab of allTabs) {
-    const key = tabUrlKey(tab.url);
-    urlCounts.set(key, (urlCounts.get(key) || 0) + 1);
+    const url = tabUrlKey(tab.url);
+    urlCounts.set(url, (urlCounts.get(url) || 0) + 1);
+    if (!todayStats[url]) unvisitedTotal += 1;
+  }
+  for (const [url, count] of urlCounts) {
+    if (count > 1 && /^https?:/.test(url)) dupeTotal += count - 1;
   }
 
-  return allTabs
-    .map((tab) => {
-      const url = tabUrlKey(tab.url);
-      const host = hostOf(tab.url);
-      return {
-        tab,
-        host,
-        url,
-        count: todayStats[url] || 0,
-        last: lastActive[url] || tab.lastAccessed || 0,
-        dupes: urlCounts.get(url) || 1,
-      };
-    })
-    .filter(({ tab, host, url, count }) => {
-      if (unvisitedOnly.checked && count > 0) return false;
-      if (!keyword) return true;
-      return (
-        (tab.title || '').toLowerCase().includes(keyword) ||
-        (tab.url || '').toLowerCase().includes(keyword) ||
-        host.toLowerCase().includes(keyword) ||
-        url.toLowerCase().includes(keyword)
-      );
-    });
-}
+  const items = [];
+  for (const tab of allTabs) {
+    const url = tabUrlKey(tab.url);
+    const host = hostOf(tab.url);
+    const count = todayStats[url] || 0;
+    if (onlyUnvisited && count > 0) continue;
 
-function sortItems(items) {
+    const title = tab.title || tab.url || '(无标题)';
+    if (keyword) {
+      const hay = `${title}\n${tab.url || ''}\n${host}\n${url}`.toLowerCase();
+      if (!hay.includes(keyword)) continue;
+    }
+
+    items.push({
+      tab,
+      host,
+      url,
+      title,
+      count,
+      last: lastActive[url] || tab.lastAccessed || 0,
+      dupes: urlCounts.get(url) || 1,
+    });
+  }
+
   if (sortSelect.value === 'least') {
     items.sort((a, b) => a.count - b.count || a.last - b.last);
   } else if (sortSelect.value === 'stale') {
     items.sort((a, b) => a.last - b.last);
   }
-  return items;
-}
 
-function groupedByHost(items) {
   const groups = [];
   const index = new Map();
   for (const item of items) {
     const key = item.host || '(其他)';
-    if (!index.has(key)) {
-      index.set(key, groups.length);
-      groups.push({ host: key, items: [] });
+    let g = index.get(key);
+    if (g == null) {
+      g = groups.length;
+      index.set(key, g);
+      groups.push({ host: key, items: [], minCount: item.count, minLast: item.last || 0 });
     }
-    groups[index.get(key)].items.push(item);
+    const group = groups[g];
+    group.items.push(item);
+    if (item.count < group.minCount) group.minCount = item.count;
+    if ((item.last || 0) < group.minLast) group.minLast = item.last || 0;
   }
 
   if (sortSelect.value === 'least') {
-    groups.sort((a, b) => {
-      const minA = Math.min(...a.items.map((i) => i.count));
-      const minB = Math.min(...b.items.map((i) => i.count));
-      return minA - minB || b.items.length - a.items.length;
-    });
+    groups.sort((a, b) => a.minCount - b.minCount || b.items.length - a.items.length);
   } else if (sortSelect.value === 'stale') {
-    groups.sort((a, b) => {
-      const minA = Math.min(...a.items.map((i) => i.last || 0));
-      const minB = Math.min(...b.items.map((i) => i.last || 0));
-      return minA - minB;
-    });
+    groups.sort((a, b) => a.minLast - b.minLast);
   } else {
     groups.sort((a, b) => b.items.length - a.items.length);
   }
-  return groups;
+
+  return { keyword, items, groups, unvisitedTotal, dupeTotal };
 }
 
 function renderTabRow(item, keyword, now) {
-  const { tab, host, count, last, dupes } = item;
+  const { tab, host, title, count, last, dupes } = item;
   const li = document.createElement('li');
   li.className = 'tab-item' + (tab.active ? ' active-tab' : '');
+  li.dataset.tabId = String(tab.id);
+  li.dataset.windowId = String(tab.windowId);
   li.title = tab.url || '';
 
   if (tab.favIconUrl && /^https?:/.test(tab.favIconUrl)) {
     const img = document.createElement('img');
     img.className = 'favicon';
     img.src = tab.favIconUrl;
-    img.addEventListener('error', () => {
-      const fb = document.createElement('div');
-      fb.className = 'favicon-fallback';
-      fb.textContent = (host[0] || '?').toUpperCase();
-      img.replaceWith(fb);
-    });
+    img.loading = 'lazy';
+    img.addEventListener(
+      'error',
+      () => {
+        const fb = document.createElement('div');
+        fb.className = 'favicon-fallback';
+        fb.textContent = (host[0] || '?').toUpperCase();
+        img.replaceWith(fb);
+      },
+      { once: true }
+    );
     li.appendChild(img);
   } else {
     const fb = document.createElement('div');
@@ -212,10 +242,10 @@ function renderTabRow(item, keyword, now) {
   const info = document.createElement('div');
   info.className = 'tab-info';
 
-  const title = document.createElement('div');
-  title.className = 'tab-title';
-  appendHighlighted(title, tab.title || tab.url || '(无标题)', keyword);
-  info.appendChild(title);
+  const titleEl = document.createElement('div');
+  titleEl.className = 'tab-title';
+  appendHighlighted(titleEl, title, keyword);
+  info.appendChild(titleEl);
 
   const meta = document.createElement('div');
   meta.className = 'tab-meta';
@@ -223,18 +253,9 @@ function renderTabRow(item, keyword, now) {
   hostSpan.className = 'host';
   appendHighlighted(hostSpan, host || tab.url || '', keyword);
   meta.appendChild(hostSpan);
-
   if (last) {
-    const ago = now - last;
     const timeSpan = document.createElement('span');
-    timeSpan.textContent =
-      ago < 60000
-        ? '刚刚'
-        : ago < 3600000
-          ? `${Math.floor(ago / 60000)} 分钟前`
-          : ago < 86400000
-            ? `${Math.floor(ago / 3600000)} 小时前`
-            : `${Math.floor(ago / 86400000)} 天前`;
+    timeSpan.textContent = formatAgo(now - last);
     meta.appendChild(timeSpan);
   }
   info.appendChild(meta);
@@ -256,56 +277,47 @@ function renderTabRow(item, keyword, now) {
 
   const closeBtn = document.createElement('button');
   closeBtn.className = 'close-btn';
+  closeBtn.type = 'button';
   closeBtn.textContent = '×';
   closeBtn.title = '关闭该标签页';
-  closeBtn.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    await chrome.tabs.remove(tab.id);
-    reload();
-  });
   li.appendChild(closeBtn);
-
-  li.addEventListener('click', async () => {
-    await chrome.tabs.update(tab.id, { active: true });
-    await chrome.windows.update(tab.windowId, { focused: true });
-    window.close();
-  });
 
   return li;
 }
 
 function render() {
-  const keyword = searchInput.value.trim().toLowerCase();
   const now = Date.now();
-  const items = sortItems(filteredItems());
-  const groups = groupedByHost(items);
+  const view = buildViewModel();
+  cachedItems = view.items;
 
-  const unvisitedTotal = allTabs.filter((t) => !todayStats[tabUrlKey(t.url)]).length;
-  const dupeTotal = duplicateTargets().length;
-  summaryEl.textContent = `共 ${allTabs.length} 个 · 今日未访问 ${unvisitedTotal} 个 · 重复 ${dupeTotal} 个${
-    keyword || unvisitedOnly.checked ? ` · 显示 ${items.length} 个` : ''
+  summaryEl.textContent = `共 ${allTabs.length} 个 · 今日未访问 ${view.unvisitedTotal} 个 · 重复 ${view.dupeTotal} 个${
+    view.keyword || unvisitedOnly.checked ? ` · 显示 ${view.items.length} 个` : ''
   }`;
 
-  tabList.textContent = '';
+  const frag = document.createDocumentFragment();
 
-  if (items.length === 0) {
+  if (view.items.length === 0) {
     const tip = document.createElement('li');
     tip.className = 'empty-tip';
-    tip.textContent = keyword ? '没有匹配的标签页' : '没有符合条件的标签页';
-    tabList.appendChild(tip);
+    tip.textContent = view.keyword ? '没有匹配的标签页' : '没有符合条件的标签页';
+    frag.appendChild(tip);
+    tabList.replaceChildren(frag);
     return;
   }
 
-  for (const group of groups) {
+  const searching = Boolean(view.keyword);
+  for (const group of view.groups) {
     const wrap = document.createElement('li');
     wrap.className = 'domain-group';
+    wrap.dataset.host = group.host;
+    if (!searching && collapsedHosts.has(group.host)) wrap.classList.add('collapsed');
 
     const header = document.createElement('div');
     header.className = 'domain-header';
 
     const name = document.createElement('span');
     name.className = 'domain-name';
-    appendHighlighted(name, group.host, keyword);
+    appendHighlighted(name, group.host, view.keyword);
 
     const count = document.createElement('span');
     count.className = 'domain-count';
@@ -313,38 +325,21 @@ function render() {
 
     const closeGroupBtn = document.createElement('button');
     closeGroupBtn.className = 'close-group-btn';
+    closeGroupBtn.type = 'button';
     closeGroupBtn.textContent = '关闭本组';
     closeGroupBtn.title = `关闭 ${group.host} 下未固定的标签页`;
-    closeGroupBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const ids = group.items.filter((i) => !i.tab.pinned).map((i) => i.tab.id);
-      if (!ids.length) return;
-      await chrome.tabs.remove(ids);
-      collapsedHosts.delete(group.host);
-      reload();
-    });
 
     header.append(name, count, closeGroupBtn);
 
-    const searching = Boolean(keyword);
-    const collapsed = !searching && collapsedHosts.has(group.host);
-    wrap.classList.toggle('collapsed', collapsed);
-
-    header.addEventListener('click', () => {
-      if (searching) return;
-      if (collapsedHosts.has(group.host)) collapsedHosts.delete(group.host);
-      else collapsedHosts.add(group.host);
-      render();
-    });
-
     const inner = document.createElement('ul');
     inner.className = 'domain-tabs';
-    for (const item of group.items) inner.appendChild(renderTabRow(item, keyword, now));
+    for (const item of group.items) inner.appendChild(renderTabRow(item, view.keyword, now));
 
     wrap.append(header, inner);
-    tabList.appendChild(wrap);
+    frag.appendChild(wrap);
   }
 
+  tabList.replaceChildren(frag);
   applySelection();
 }
 
@@ -360,9 +355,8 @@ function duplicateTargets() {
   const toClose = [];
   for (const tabs of byUrl.values()) {
     if (tabs.length < 2) continue;
-    // 优先关掉更早打开的，保留最新的
     tabs.sort((a, b) => a.id - b.id);
-    toClose.push(...tabs.slice(0, -1).map((t) => t.id));
+    for (let i = 0; i < tabs.length - 1; i += 1) toClose.push(tabs[i].id);
   }
   return toClose;
 }
@@ -391,17 +385,73 @@ async function confirmAction(btn, count, label, run) {
   reload();
 }
 
+// 事件委托：避免给每个标签页单独绑监听器
+tabList.addEventListener('click', async (e) => {
+  const closeBtn = e.target.closest('.close-btn');
+  if (closeBtn) {
+    e.stopPropagation();
+    const row = closeBtn.closest('.tab-item');
+    const tabId = Number(row?.dataset.tabId);
+    if (tabId) {
+      await chrome.tabs.remove(tabId);
+      reload();
+    }
+    return;
+  }
+
+  const closeGroupBtn = e.target.closest('.close-group-btn');
+  if (closeGroupBtn) {
+    e.stopPropagation();
+    const wrap = closeGroupBtn.closest('.domain-group');
+    const host = wrap?.dataset.host;
+    const ids = cachedItems
+      .filter((i) => (i.host || '(其他)') === host && !i.tab.pinned)
+      .map((i) => i.tab.id);
+    if (ids.length) {
+      await chrome.tabs.remove(ids);
+      if (host) collapsedHosts.delete(host);
+      reload();
+    }
+    return;
+  }
+
+  const header = e.target.closest('.domain-header');
+  if (header && !searchInput.value.trim()) {
+    const wrap = header.closest('.domain-group');
+    const host = wrap?.dataset.host;
+    if (!host || !wrap) return;
+    if (collapsedHosts.has(host)) {
+      collapsedHosts.delete(host);
+      wrap.classList.remove('collapsed');
+    } else {
+      collapsedHosts.add(host);
+      wrap.classList.add('collapsed');
+    }
+    applySelection();
+    return;
+  }
+
+  const row = e.target.closest('.tab-item');
+  if (row) {
+    const tabId = Number(row.dataset.tabId);
+    const windowId = Number(row.dataset.windowId);
+    await chrome.tabs.update(tabId, { active: true });
+    await chrome.windows.update(windowId, { focused: true });
+    window.close();
+  }
+});
+
 searchInput.addEventListener('input', () => {
   selectedIndex = 0;
-  render();
+  scheduleRender(false);
 });
 sortSelect.addEventListener('change', () => {
   savePrefs();
-  render();
+  scheduleRender(true);
 });
 unvisitedOnly.addEventListener('change', () => {
   savePrefs();
-  render();
+  scheduleRender(true);
 });
 autoGroup.addEventListener('change', () => {
   savePrefs();
@@ -412,7 +462,7 @@ autoDedupe.addEventListener('change', () => {
   if (autoDedupe.checked) chrome.runtime.sendMessage({ type: 'dedupe-all-now' });
 });
 
-searchInput.addEventListener('keydown', async (e) => {
+searchInput.addEventListener('keydown', (e) => {
   const items = visibleTabItems();
   if (e.key === 'ArrowDown' && items.length) {
     e.preventDefault();
@@ -430,7 +480,7 @@ searchInput.addEventListener('keydown', async (e) => {
     if (searchInput.value) {
       searchInput.value = '';
       selectedIndex = 0;
-      render();
+      scheduleRender(true);
     } else {
       window.close();
     }
@@ -439,45 +489,7 @@ searchInput.addEventListener('keydown', async (e) => {
 
 groupBtn.addEventListener('click', async () => {
   if (!supportsTabGroups) return;
-
-  const tabs = await chrome.tabs.query({});
-  const pending = new Map();
-
-  for (const tab of tabs) {
-    if (tab.pinned || !tab.url || !/^https?:/.test(tab.url)) continue;
-    const host = hostOf(tab.url);
-    if (!host) continue;
-    const key = `${tab.windowId}|${host}`;
-    if (!pending.has(key)) pending.set(key, { windowId: tab.windowId, host, tabIds: [] });
-    pending.get(key).tabIds.push(tab.id);
-  }
-
-  const existingByWindow = new Map();
-  for (const { windowId } of pending.values()) {
-    if (existingByWindow.has(windowId)) continue;
-    existingByWindow.set(windowId, await chrome.tabGroups.query({ windowId }));
-  }
-
-  for (const { windowId, host, tabIds } of pending.values()) {
-    if (tabIds.length < 2) continue;
-    try {
-      const existing = existingByWindow.get(windowId) || [];
-      const found = existing.find((g) => g.title === host);
-      if (found) {
-        await chrome.tabs.group({ tabIds, groupId: found.id });
-      } else {
-        const groupId = await chrome.tabs.group({ tabIds, createProperties: { windowId } });
-        let hash = 0;
-        for (const ch of host) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-        await chrome.tabGroups.update(groupId, {
-          title: host,
-          color: GROUP_COLORS[hash % GROUP_COLORS.length],
-        });
-      }
-    } catch (err) {
-      console.warn('分组失败:', host, err);
-    }
-  }
+  await chrome.runtime.sendMessage({ type: 'group-all-now' });
   reload();
 });
 
@@ -487,7 +499,6 @@ ungroupBtn.addEventListener('click', async () => {
   const noneId = chrome.tabGroups.TAB_GROUP_ID_NONE;
   const grouped = tabs.filter((t) => t.groupId !== noneId);
   if (grouped.length) await chrome.tabs.ungroup(grouped.map((t) => t.id));
-  // 取消分组后关闭自动分组，避免立刻又被自动收回去
   autoGroup.checked = false;
   savePrefs();
   reload();
