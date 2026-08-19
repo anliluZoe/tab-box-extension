@@ -56,6 +56,15 @@ button:hover {
   background: #f3f4f6;
 }
 
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  background: #fff;
+}
+
 button.primary {
   background: #0969da;
   border-color: #0969da;
@@ -99,11 +108,72 @@ button.danger:hover {
   font-size: 12px;
 }
 
+mark {
+  background: #ffe9a8;
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
 #tab-list {
   list-style: none;
   overflow-y: auto;
   flex: 1;
-  padding: 0 8px;
+  padding: 0 8px 8px;
+}
+
+.domain-group {
+  margin-bottom: 8px;
+}
+
+.domain-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #57606a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.domain-header:hover {
+  background: #eef1f4;
+}
+
+.domain-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.domain-count {
+  flex-shrink: 0;
+  min-width: 18px;
+  text-align: center;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: #eaeef2;
+  font-variant-numeric: tabular-nums;
+}
+
+.close-group-btn {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: #57606a;
+}
+
+.domain-tabs {
+  list-style: none;
+}
+
+.domain-group.collapsed .domain-tabs,
+.domain-group.collapsed .close-group-btn {
+  display: none;
 }
 
 .tab-item {
@@ -125,6 +195,11 @@ button.danger:hover {
 
 .tab-item.active-tab {
   border-color: #0969da;
+}
+
+.tab-item.selected {
+  border-color: #0f6b6b;
+  background: #eef8f8;
 }
 
 .favicon {
@@ -189,6 +264,15 @@ button.danger:hover {
   font-weight: 400;
 }
 
+.dupe-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #fff8c5;
+  color: #9a6700;
+}
+
 .close-btn {
   flex-shrink: 0;
   border: none;
@@ -212,12 +296,13 @@ button.danger:hover {
 }
 
 footer {
+  display: flex;
+  gap: 8px;
   padding: 8px 12px;
   border-top: 1px solid #eaeef2;
   background: #fff;
-  text-align: center;
 }
 
-#close-unvisited {
-  width: 100%;
+footer button {
+  flex: 1;
 }
