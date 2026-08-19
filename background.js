@@ -244,12 +244,12 @@ async function setupContextMenus() {
 
     await chrome.contextMenus.create({
       id: 'tab-manager',
-      title: '标签页管家',
+      title: '标签盒',
       contexts,
     });
 
     const items = [
-      { id: 'open-manager', title: '打开标签页管家' },
+      { id: 'open-manager', title: '打开标签盒' },
       { id: 'group-by-domain', title: '按域名分组' },
       { id: 'close-duplicates', title: '关闭重复（保留最新）' },
       { id: 'close-unvisited', title: '关闭今日未访问' },

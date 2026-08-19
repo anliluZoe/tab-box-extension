@@ -1,0 +1,93 @@
+name: Release on PR merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read version
+        id: meta
+        run: |
+          VERSION=$(node -p "require('./manifest.json').version")
+          NAME=$(node -p "require('./manifest.json').name")
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="v${VERSION}"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1 || gh release view "$TAG" >/dev/null 2>&1; then
+            TAG="v${VERSION}-${SHORT_SHA}"
+          fi
+
+          ZIP="tab-box-${TAG}.zip"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build zip
+        run: |
+          zip -r "${{ steps.meta.outputs.zip }}" \
+            manifest.json \
+            background.js \
+            popup.html \
+            popup.css \
+            popup.js \
+            README.md \
+            LICENSE \
+            icons \
+            -x "*.DS_Store"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          ZIP="${{ steps.meta.outputs.zip }}"
+          NAME="${{ steps.meta.outputs.name }}"
+          VERSION="${{ steps.meta.outputs.version }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+
+          NOTES="## ${NAME} ${TAG}
+
+          自动打包自合并到 \`main\` 的变更。
+
+          ### 安装
+          1. 下载下方 zip 并解压
+          2. 打开 \`edge://extensions/\` 或 \`chrome://extensions/\`
+          3. 开启开发者模式
+          4. 加载解压缩的扩展，选择解压后的文件夹
+          "
+
+          if [ -n "$PR_NUMBER" ]; then
+            NOTES="${NOTES}
+          ### 来源
+          - PR #${PR_NUMBER}: ${PR_TITLE}
+          - Commit: ${GITHUB_SHA}
+          "
+          else
+            NOTES="${NOTES}
+          ### 来源
+          - 手动触发 / Commit: ${GITHUB_SHA}
+          "
+          fi
+
+          gh release create "$TAG" "$ZIP" \
+            --title "${NAME} ${TAG}" \
+            --notes "$NOTES"
+
+          echo "Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
+          echo "Zip: https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${ZIP}"

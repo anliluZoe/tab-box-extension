@@ -1,4 +1,4 @@
-# 标签页管家
+# 标签盒
 
 一个帮你管理大量标签页的浏览器扩展（Manifest V3），同时支持 **Google Chrome** 与 **Microsoft Edge**（Chromium 内核）。
 
@@ -8,7 +8,7 @@
 2. **自动去重**：默认开启。出现相同网址时会关掉更早打开的标签页，保留刚打开的那一个。
 3. **快速搜索**：按标题 / 网址 / 域名搜索；`Alt+T` 打开，`↑↓` 选择，回车跳转。
 4. **访问统计与清理**：统计每天点开次数，可按「访问最少 / 最久未用」排序，并一键关闭重复页或今日未访问的标签页。
-5. **右键快捷入口**：在网页上右键可看到「标签页管家」子菜单，直接分组、关重复、关同域名标签页等。
+5. **右键快捷入口**：在网页上右键可看到「标签盒」子菜单，直接分组、关重复、关同域名标签页等。
 
 ## 安装（务必选对文件夹）
 
@@ -17,6 +17,8 @@
 `D:\learning\brower-extension`
 
 不要选上一级的 `learning`，也不要选里面的某个子文件。
+
+每次有 PR 合并进 `main` 时，GitHub Actions 会自动打包并发布 Release（含 zip）。也可在仓库 **Actions → Release on PR merge → Run workflow** 手动触发。发布页：https://github.com/anliluZoe/brower-extension/releases
 
 ### Microsoft Edge
 
