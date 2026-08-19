@@ -1,6 +1,8 @@
 const searchInput = document.getElementById('search');
 const sortSelect = document.getElementById('sort');
 const unvisitedOnly = document.getElementById('unvisited-only');
+const autoGroup = document.getElementById('auto-group');
+const autoDedupe = document.getElementById('auto-dedupe');
 const tabList = document.getElementById('tab-list');
 const summaryEl = document.getElementById('summary');
 const groupBtn = document.getElementById('group-btn');
@@ -85,17 +87,28 @@ async function reload() {
   lastActive = stored.lastActive || {};
 
   const prefs = stored.prefs || {};
-  if (prefs.sort && !sortSelect.dataset.ready) sortSelect.value = prefs.sort;
-  if (prefs.unvisitedOnly && !unvisitedOnly.dataset.ready) unvisitedOnly.checked = true;
-  sortSelect.dataset.ready = '1';
-  unvisitedOnly.dataset.ready = '1';
+  if (!sortSelect.dataset.ready) {
+    if (prefs.sort) sortSelect.value = prefs.sort;
+    unvisitedOnly.checked = Boolean(prefs.unvisitedOnly);
+    autoGroup.checked = prefs.autoGroup !== false;
+    autoDedupe.checked = prefs.autoDedupe !== false;
+    sortSelect.dataset.ready = '1';
+    unvisitedOnly.dataset.ready = '1';
+    autoGroup.dataset.ready = '1';
+    autoDedupe.dataset.ready = '1';
+  }
 
   render();
 }
 
 function savePrefs() {
   chrome.storage.local.set({
-    prefs: { sort: sortSelect.value, unvisitedOnly: unvisitedOnly.checked },
+    prefs: {
+      sort: sortSelect.value,
+      unvisitedOnly: unvisitedOnly.checked,
+      autoGroup: autoGroup.checked,
+      autoDedupe: autoDedupe.checked,
+    },
   });
 }
 
@@ -347,8 +360,9 @@ function duplicateTargets() {
   const toClose = [];
   for (const tabs of byUrl.values()) {
     if (tabs.length < 2) continue;
-    tabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
-    toClose.push(...tabs.slice(1).map((t) => t.id));
+    // 优先关掉更早打开的，保留最新的
+    tabs.sort((a, b) => a.id - b.id);
+    toClose.push(...tabs.slice(0, -1).map((t) => t.id));
   }
   return toClose;
 }
@@ -388,6 +402,14 @@ sortSelect.addEventListener('change', () => {
 unvisitedOnly.addEventListener('change', () => {
   savePrefs();
   render();
+});
+autoGroup.addEventListener('change', () => {
+  savePrefs();
+  if (autoGroup.checked) chrome.runtime.sendMessage({ type: 'group-all-now' });
+});
+autoDedupe.addEventListener('change', () => {
+  savePrefs();
+  if (autoDedupe.checked) chrome.runtime.sendMessage({ type: 'dedupe-all-now' });
 });
 
 searchInput.addEventListener('keydown', async (e) => {
@@ -465,6 +487,9 @@ ungroupBtn.addEventListener('click', async () => {
   const noneId = chrome.tabGroups.TAB_GROUP_ID_NONE;
   const grouped = tabs.filter((t) => t.groupId !== noneId);
   if (grouped.length) await chrome.tabs.ungroup(grouped.map((t) => t.id));
+  // 取消分组后关闭自动分组，避免立刻又被自动收回去
+  autoGroup.checked = false;
+  savePrefs();
   reload();
 });
 

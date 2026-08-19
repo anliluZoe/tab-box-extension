@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "标签页管家",
   "description": "适用于 Chrome 与 Microsoft Edge。按域名合并标签页、快速搜索已打开的网页、统计每日访问次数。",
-  "version": "1.2.0",
-  "permissions": ["tabs", "tabGroups", "storage"],
+  "version": "1.5.0",
+  "permissions": ["tabs", "tabGroups", "storage", "contextMenus"],
   "background": {
     "service_worker": "background.js"
   },

@@ -12,12 +12,14 @@
 
   <div class="toolbar">
     <button id="group-btn" class="primary" title="把每个窗口内相同域名的标签页合并成一个标签组">按域名分组</button>
-    <button id="ungroup-btn" title="解散所有标签组">取消分组</button>
+    <button id="ungroup-btn" title="解散所有标签组，并暂时关闭自动分组">取消分组</button>
     <select id="sort">
       <option value="default">同域名靠在一起</option>
       <option value="least">访问最少优先</option>
       <option value="stale">最久未用优先</option>
     </select>
+    <label class="filter"><input type="checkbox" id="auto-group" checked />自动分组</label>
+    <label class="filter"><input type="checkbox" id="auto-dedupe" checked />自动去重</label>
     <label class="filter"><input type="checkbox" id="unvisited-only" />仅今日未访问</label>
   </div>
 
