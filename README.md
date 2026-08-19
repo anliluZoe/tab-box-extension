@@ -10,30 +10,26 @@
 4. **访问统计与清理**：统计每天点开次数，可按「访问最少 / 最久未用」排序，并一键关闭重复页或今日未访问的标签页。
 5. **右键快捷入口**：在网页上右键可看到「标签盒」子菜单，直接分组、关重复、关同域名标签页等。
 
-## 安装（务必选对文件夹）
+## 安装
 
-加载时选择的文件夹里，**必须能直接看到 `manifest.json`**。正确路径示例：
+推荐从 Release 下载 zip 后解压安装：https://github.com/anliluZoe/brower-extension/releases
 
-`D:\learning\brower-extension`
-
-不要选上一级的 `learning`，也不要选里面的某个子文件。
-
-每次有 PR 合并进 `main` 时，GitHub Actions 会自动打包并发布 Release（含 zip）。也可在仓库 **Actions → Release on PR merge → Run workflow** 手动触发。发布页：https://github.com/anliluZoe/brower-extension/releases
+每次有 PR 合并进 `main` 时，GitHub Actions 会自动打包并发布 Release（含 zip）。也可在仓库 **Actions → Release on PR merge → Run workflow** 手动触发。
 
 ### Microsoft Edge
 
 1. 地址栏打开：`edge://extensions/`
 2. 打开左下角 **开发人员模式**
 3. 点击 **加载解压缩的扩展**
-4. 选择包含 `manifest.json` 的项目文件夹（见上）
-5. 若仍失败：看页面顶部红色错误提示，或点扩展卡片里的「错误」查看原因
+4. 选择解压后的扩展文件夹
+5. 若失败：看页面顶部红色错误提示，或点扩展卡片里的「错误」查看原因
 
 ### Chrome
 
 1. 打开 `chrome://extensions/`
 2. 打开右上角 **开发者模式**
 3. 点击 **加载已解压的扩展程序**
-4. 选择同一项目文件夹
+4. 选择解压后的扩展文件夹
 
 ## 说明
 
