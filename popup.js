@@ -10,6 +10,12 @@ const groupBtn = document.getElementById('group-btn');
 const ungroupBtn = document.getElementById('ungroup-btn');
 const closeDuplicatesBtn = document.getElementById('close-duplicates');
 const closeIdleBtn = document.getElementById('close-idle');
+const versionText = document.getElementById('version-text');
+const checkUpdateBtn = document.getElementById('check-update');
+
+const UPDATE_REPOS = ['anliluZoe/tab-box-extension', 'anliluZoe/brower-extension'];
+const manifestVersion = chrome.runtime.getManifest().version;
+versionText.textContent = `当前版本 v${manifestVersion}`;
 
 const supportsTabGroups = Boolean(
   chrome.tabGroups && chrome.tabs.group && chrome.tabs.ungroup
@@ -562,6 +568,74 @@ closeIdleBtn.addEventListener('click', () => {
   confirmAction(closeIdleBtn, targets.length, `关闭近${days}天未访问`, () =>
     chrome.tabs.remove(targets.map((t) => t.id))
   );
+});
+
+function parseVersion(raw) {
+  return String(raw || '')
+    .trim()
+    .replace(/^v/i, '')
+    .split(/[.+-]/)
+    .filter(Boolean)
+    .map((part) => {
+      const n = Number.parseInt(part, 10);
+      return Number.isFinite(n) ? n : 0;
+    });
+}
+
+function compareVersion(a, b) {
+  const left = parseVersion(a);
+  const right = parseVersion(b);
+  const len = Math.max(left.length, right.length);
+  for (let i = 0; i < len; i += 1) {
+    const x = left[i] || 0;
+    const y = right[i] || 0;
+    if (x !== y) return x - y;
+  }
+  return 0;
+}
+
+async function fetchLatestRelease() {
+  let lastError;
+  for (const repo of UPDATE_REPOS) {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+        headers: { Accept: 'application/vnd.github+json' },
+      });
+      if (res.status === 404) continue;
+      if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+      const data = await res.json();
+      if (data?.tag_name) return data;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+  throw lastError || new Error('未找到可用的 Release');
+}
+
+checkUpdateBtn.addEventListener('click', async () => {
+  checkUpdateBtn.classList.add('busy');
+  checkUpdateBtn.textContent = '检查中…';
+  try {
+    const release = await fetchLatestRelease();
+    const latest = release.tag_name;
+    const pageUrl = release.html_url;
+    const zip = (release.assets || []).find(
+      (a) => /\.zip$/i.test(a.name) && /tab-box/i.test(a.name)
+    ) || (release.assets || []).find((a) => /\.zip$/i.test(a.name));
+
+    if (compareVersion(latest, manifestVersion) > 0) {
+      summaryEl.textContent = `发现新版本 ${latest}（当前 v${manifestVersion}），正在打开下载页…`;
+      await chrome.tabs.create({ url: zip?.browser_download_url || pageUrl });
+    } else {
+      summaryEl.textContent = `已是最新版本 v${manifestVersion}`;
+    }
+  } catch (err) {
+    console.warn('检查更新失败:', err);
+    summaryEl.textContent = '检查更新失败，请稍后重试或手动打开 GitHub Release 页';
+  } finally {
+    checkUpdateBtn.classList.remove('busy');
+    checkUpdateBtn.textContent = '检查更新';
+  }
 });
 
 reload();

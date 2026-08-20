@@ -2,8 +2,9 @@
   "manifest_version": 3,
   "name": "标签盒",
   "description": "适用于 Chrome 与 Microsoft Edge。按域名合并标签页、快速搜索已打开的网页、按闲置天数清理标签页。",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "permissions": ["tabs", "tabGroups", "storage", "contextMenus"],
+  "host_permissions": ["https://api.github.com/*"],
   "background": {
     "service_worker": "background.js"
   },
