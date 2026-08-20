@@ -1,5 +1,5 @@
-// 后台：访问统计、角标、右键菜单、自动分组/去重。
-// 性能要点：内存缓存偏好、角标增量更新、跳过无变化写入与已分组域名。
+// 后台：访问统计、右键菜单、自动分组/去重。
+// 性能要点：内存缓存偏好、跳过无变化写入与已分组域名。
 
 const KEEP_DAYS = 7;
 const COUNT_DEBOUNCE_MS = 3000;
@@ -9,8 +9,6 @@ const GROUP_COLORS = ['blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan'
 const HTTP_RE = /^https?:/;
 
 let writeQueue = Promise.resolve();
-let tabCount = 0;
-let badgeTimer = 0;
 let prefs = { autoGroup: true, autoDedupe: true };
 let cleanupDay = '';
 
@@ -96,24 +94,9 @@ function recordVisit(tab) {
     .catch(() => {});
 }
 
-function scheduleBadge() {
-  if (badgeTimer) return;
-  badgeTimer = setTimeout(async () => {
-    badgeTimer = 0;
-    try {
-      const text = tabCount > 99 ? '99+' : String(Math.max(0, tabCount));
-      await chrome.action.setBadgeText({ text });
-      await chrome.action.setBadgeBackgroundColor({ color: '#0F6B6B' });
-    } catch {
-      // ignore
-    }
-  }, 120);
-}
-
-async function refreshTabCount() {
+async function clearBadge() {
   try {
-    tabCount = (await chrome.tabs.query({})).length;
-    scheduleBadge();
+    await chrome.action.setBadgeText({ text: '' });
   } catch {
     // ignore
   }
@@ -238,15 +221,35 @@ function scheduleAutoHousekeeping(tab) {
   );
 }
 
-async function closeUnvisitedToday() {
+async function closeIdleTabs(days = 2) {
+  const safeDays = Math.min(7, Math.max(1, Number(days) || 2));
   const [tabs, stored] = await Promise.all([
     chrome.tabs.query({}),
-    chrome.storage.local.get(['stats']),
+    chrome.storage.local.get(['stats', 'lastActive']),
   ]);
-  const todayStats = (stored.stats || {})[todayKey()] || {};
+  const stats = stored.stats || {};
+  const lastActive = stored.lastActive || {};
+  const cutoff = Date.now() - safeDays * 86400000;
+  const recentDays = [];
+  for (let i = 0; i < safeDays; i += 1) {
+    recentDays.push(new Date(Date.now() - i * 86400000).toLocaleDateString('sv'));
+  }
+
   const ids = tabs
-    .filter((t) => !t.pinned && !t.active && !todayStats[tabUrlKey(t.url)])
+    .filter((tab) => {
+      if (tab.pinned || tab.active || !HTTP_RE.test(tab.url || '')) return false;
+      const url = tabUrlKey(tab.url);
+      const last = lastActive[url] || tab.lastAccessed || 0;
+      if (last && last >= cutoff) return false;
+      for (const day of recentDays) {
+        if (stats[day]?.[url]) return false;
+      }
+      // 没有任何活跃记录时，用浏览器 lastAccessed；仍没有则不关，避免误伤
+      if (!last) return false;
+      return true;
+    })
     .map((t) => t.id);
+
   if (ids.length) await chrome.tabs.remove(ids);
 }
 
@@ -278,10 +281,14 @@ async function setupContextMenus() {
       { id: 'open-manager', title: '打开标签盒' },
       { id: 'group-by-domain', title: '按域名分组' },
       { id: 'close-duplicates', title: '关闭重复（保留最新）' },
-      { id: 'close-unvisited', title: '关闭今日未访问' },
+      { id: 'close-idle-1', title: '关闭近1天未访问' },
+      { id: 'close-idle-2', title: '关闭近2天未访问' },
+      { id: 'close-idle-3', title: '关闭近3天未访问' },
       { id: 'sep-1', type: 'separator' },
       { id: 'close-same-domain-others', title: '关闭同域名其他标签页' },
       { id: 'close-same-domain-all', title: '关闭同域名全部标签页' },
+      { id: 'sep-2', type: 'separator' },
+      { id: 'check-update', title: '检查更新' },
     ];
 
     for (const item of items) {
@@ -302,13 +309,11 @@ async function rememberOpenTabs() {
   try {
     const tabs = await chrome.tabs.query({});
     const now = Date.now();
-    tabCount = tabs.length;
     for (const tab of tabs) {
       if (!tabOpenedAt.has(tab.id)) {
         tabOpenedAt.set(tab.id, now - (tabs.length - tab.index) * 10);
       }
     }
-    scheduleBadge();
   } catch {
     // ignore
   }
@@ -326,8 +331,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       case 'close-duplicates':
         await closeDuplicateTabs();
         break;
-      case 'close-unvisited':
-        await closeUnvisitedToday();
+      case 'close-idle-1':
+        await closeIdleTabs(1);
+        break;
+      case 'close-idle-2':
+        await closeIdleTabs(2);
+        break;
+      case 'close-idle-3':
+        await closeIdleTabs(3);
         break;
       case 'close-same-domain-others':
         await closeSameDomainTabs(tab, true);
@@ -335,13 +346,17 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       case 'close-same-domain-all':
         await closeSameDomainTabs(tab, false);
         break;
+      case 'check-update':
+        await chrome.tabs.create({
+          url: 'https://github.com/anliluZoe/tab-box-extension/releases/latest',
+        });
+        break;
       default:
         break;
     }
   } catch (err) {
     console.warn('右键菜单操作失败:', info.menuItemId, err);
   }
-  refreshTabCount();
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -379,15 +394,11 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
 
 chrome.tabs.onCreated.addListener((tab) => {
   tabOpenedAt.set(tab.id, Date.now());
-  tabCount += 1;
-  scheduleBadge();
   scheduleAutoHousekeeping(tab);
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabOpenedAt.delete(tabId);
-  tabCount = Math.max(0, tabCount - 1);
-  scheduleBadge();
 });
 
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
@@ -403,14 +414,17 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
 chrome.runtime.onStartup.addListener(() => {
   loadPrefs();
   rememberOpenTabs();
+  clearBadge();
   setupContextMenus();
 });
 chrome.runtime.onInstalled.addListener(() => {
   loadPrefs();
   rememberOpenTabs();
+  clearBadge();
   setupContextMenus();
 });
 
 loadPrefs();
 rememberOpenTabs();
+clearBadge();
 setupContextMenus();
