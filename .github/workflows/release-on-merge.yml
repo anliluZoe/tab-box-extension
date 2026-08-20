@@ -39,16 +39,13 @@ jobs:
 
       - name: Build zip
         run: |
-          zip -r "${{ steps.meta.outputs.zip }}" \
-            manifest.json \
-            background.js \
-            popup.html \
-            popup.css \
-            popup.js \
-            README.md \
-            LICENSE \
-            icons \
-            -x "*.DS_Store"
+          STAGE="tab-box"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE"
+          cp manifest.json background.js popup.html popup.css popup.js README.md LICENSE "$STAGE/"
+          cp -R icons "$STAGE/icons"
+          # 打成带顶层目录的 zip，解压后得到 tab-box/ 文件夹
+          zip -r "${{ steps.meta.outputs.zip }}" "$STAGE" -x "*.DS_Store"
 
       - name: Create GitHub Release
         env:
@@ -66,10 +63,10 @@ jobs:
           自动打包自合并到 \`main\` 的变更。
 
           ### 安装
-          1. 下载下方 zip 并解压
+          1. 下载下方 zip 并解压（会得到 \`tab-box\` 文件夹）
           2. 打开 \`edge://extensions/\` 或 \`chrome://extensions/\`
           3. 开启开发者模式
-          4. 加载解压缩的扩展，选择解压后的文件夹
+          4. 加载解压缩的扩展，选择解压出的 \`tab-box\` 文件夹
           "
 
           if [ -n "$PR_NUMBER" ]; then
