@@ -6,7 +6,14 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <header>
+  <header class="top">
+    <div class="brand">
+      <img class="brand-icon" src="icons/icon48.png" alt="" width="28" height="28" />
+      <div class="brand-text">
+        <div class="brand-name">标签盒</div>
+        <div class="brand-sub">把散落的标签页收进盒子</div>
+      </div>
+    </div>
     <input id="search" type="search" placeholder="搜索标题 / 网址 / 域名，↑↓ 选择，回车跳转" autofocus autocomplete="off" />
   </header>
 
@@ -31,10 +38,12 @@
     </select>
   </div>
 
-  <div id="summary"></div>
-  <div class="meta-bar">
-    <span id="version-text"></span>
-    <button type="button" id="check-update">检查更新</button>
+  <div class="status-row">
+    <div id="summary"></div>
+    <div class="meta-bar">
+      <span id="version-text"></span>
+      <button type="button" id="check-update">检查更新</button>
+    </div>
   </div>
 
   <ul id="tab-list"></ul>
