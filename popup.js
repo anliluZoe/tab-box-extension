@@ -12,6 +12,7 @@ const closeDuplicatesBtn = document.getElementById('close-duplicates');
 const closeIdleBtn = document.getElementById('close-idle');
 const versionText = document.getElementById('version-text');
 const checkUpdateBtn = document.getElementById('check-update');
+const themeSelect = document.getElementById('theme');
 
 const UPDATE_REPOS = ['anliluZoe/tab-box-extension', 'anliluZoe/brower-extension'];
 const manifestVersion = chrome.runtime.getManifest().version;
@@ -30,12 +31,23 @@ let confirmTimer = null;
 let confirmTarget = null;
 let renderTimer = 0;
 let cachedItems = [];
+let themeMode = 'system';
 
 if (!supportsTabGroups) {
   groupBtn.disabled = true;
   ungroupBtn.disabled = true;
   groupBtn.title = '当前浏览器不支持标签组 API，请升级 Edge / Chrome';
   ungroupBtn.title = groupBtn.title;
+}
+
+function resolveTheme(mode) {
+  if (mode === 'light' || mode === 'dark') return mode;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function applyTheme(mode = themeMode) {
+  themeMode = mode || 'system';
+  document.documentElement.dataset.theme = resolveTheme(themeMode);
 }
 
 function selectedIdleDays() {
@@ -160,6 +172,8 @@ async function reload() {
     if (prefs.idleDays) idleDays.value = String(prefs.idleDays);
     autoGroup.checked = prefs.autoGroup !== false;
     autoDedupe.checked = prefs.autoDedupe !== false;
+    themeSelect.value = prefs.theme || 'system';
+    applyTheme(themeSelect.value);
     sortSelect.dataset.ready = '1';
   }
   updateCloseIdleLabel();
@@ -174,6 +188,7 @@ function savePrefs() {
       idleDays: selectedIdleDays(),
       autoGroup: autoGroup.checked,
       autoDedupe: autoDedupe.checked,
+      theme: themeSelect.value,
     },
   });
 }
@@ -504,6 +519,10 @@ idleDays.addEventListener('change', () => {
   savePrefs();
   scheduleRender(true);
 });
+themeSelect.addEventListener('change', () => {
+  applyTheme(themeSelect.value);
+  savePrefs();
+});
 autoGroup.addEventListener('change', () => {
   savePrefs();
   if (autoGroup.checked) chrome.runtime.sendMessage({ type: 'group-all-now' });
@@ -512,6 +531,12 @@ autoDedupe.addEventListener('change', () => {
   savePrefs();
   if (autoDedupe.checked) chrome.runtime.sendMessage({ type: 'dedupe-all-now' });
 });
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (themeSelect.value === 'system') applyTheme('system');
+});
+
+applyTheme('system');
 
 searchInput.addEventListener('keydown', (e) => {
   const items = visibleTabItems();
