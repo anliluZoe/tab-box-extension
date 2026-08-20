@@ -93,7 +93,8 @@ button.danger:hover {
   background: #fff1f2;
 }
 
-#sort {
+#sort,
+#idle-days {
   padding: 5px 6px;
   border: 1px solid #d0d7de;
   border-radius: 6px;

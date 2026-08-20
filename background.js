@@ -238,15 +238,35 @@ function scheduleAutoHousekeeping(tab) {
   );
 }
 
-async function closeUnvisitedToday() {
+async function closeIdleTabs(days = 2) {
+  const safeDays = Math.min(7, Math.max(1, Number(days) || 2));
   const [tabs, stored] = await Promise.all([
     chrome.tabs.query({}),
-    chrome.storage.local.get(['stats']),
+    chrome.storage.local.get(['stats', 'lastActive']),
   ]);
-  const todayStats = (stored.stats || {})[todayKey()] || {};
+  const stats = stored.stats || {};
+  const lastActive = stored.lastActive || {};
+  const cutoff = Date.now() - safeDays * 86400000;
+  const recentDays = [];
+  for (let i = 0; i < safeDays; i += 1) {
+    recentDays.push(new Date(Date.now() - i * 86400000).toLocaleDateString('sv'));
+  }
+
   const ids = tabs
-    .filter((t) => !t.pinned && !t.active && !todayStats[tabUrlKey(t.url)])
+    .filter((tab) => {
+      if (tab.pinned || tab.active || !HTTP_RE.test(tab.url || '')) return false;
+      const url = tabUrlKey(tab.url);
+      const last = lastActive[url] || tab.lastAccessed || 0;
+      if (last && last >= cutoff) return false;
+      for (const day of recentDays) {
+        if (stats[day]?.[url]) return false;
+      }
+      // 没有任何活跃记录时，用浏览器 lastAccessed；仍没有则不关，避免误伤
+      if (!last) return false;
+      return true;
+    })
     .map((t) => t.id);
+
   if (ids.length) await chrome.tabs.remove(ids);
 }
 
@@ -278,7 +298,9 @@ async function setupContextMenus() {
       { id: 'open-manager', title: '打开标签盒' },
       { id: 'group-by-domain', title: '按域名分组' },
       { id: 'close-duplicates', title: '关闭重复（保留最新）' },
-      { id: 'close-unvisited', title: '关闭今日未访问' },
+      { id: 'close-idle-1', title: '关闭近1天未访问' },
+      { id: 'close-idle-2', title: '关闭近2天未访问' },
+      { id: 'close-idle-3', title: '关闭近3天未访问' },
       { id: 'sep-1', type: 'separator' },
       { id: 'close-same-domain-others', title: '关闭同域名其他标签页' },
       { id: 'close-same-domain-all', title: '关闭同域名全部标签页' },
@@ -326,8 +348,14 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       case 'close-duplicates':
         await closeDuplicateTabs();
         break;
-      case 'close-unvisited':
-        await closeUnvisitedToday();
+      case 'close-idle-1':
+        await closeIdleTabs(1);
+        break;
+      case 'close-idle-2':
+        await closeIdleTabs(2);
+        break;
+      case 'close-idle-3':
+        await closeIdleTabs(3);
         break;
       case 'close-same-domain-others':
         await closeSameDomainTabs(tab, true);

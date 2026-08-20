@@ -1,6 +1,7 @@
 const searchInput = document.getElementById('search');
 const sortSelect = document.getElementById('sort');
-const unvisitedOnly = document.getElementById('unvisited-only');
+const idleOnly = document.getElementById('idle-only');
+const idleDays = document.getElementById('idle-days');
 const autoGroup = document.getElementById('auto-group');
 const autoDedupe = document.getElementById('auto-dedupe');
 const tabList = document.getElementById('tab-list');
@@ -8,14 +9,14 @@ const summaryEl = document.getElementById('summary');
 const groupBtn = document.getElementById('group-btn');
 const ungroupBtn = document.getElementById('ungroup-btn');
 const closeDuplicatesBtn = document.getElementById('close-duplicates');
-const closeUnvisitedBtn = document.getElementById('close-unvisited');
+const closeIdleBtn = document.getElementById('close-idle');
 
 const supportsTabGroups = Boolean(
   chrome.tabGroups && chrome.tabs.group && chrome.tabs.ungroup
 );
 
 let allTabs = [];
-let todayStats = {};
+let statsByDay = {};
 let lastActive = {};
 let collapsedHosts = new Set();
 let selectedIndex = 0;
@@ -29,6 +30,41 @@ if (!supportsTabGroups) {
   ungroupBtn.disabled = true;
   groupBtn.title = '当前浏览器不支持标签组 API，请升级 Edge / Chrome';
   ungroupBtn.title = groupBtn.title;
+}
+
+function selectedIdleDays() {
+  return Math.min(7, Math.max(1, Number(idleDays.value) || 2));
+}
+
+function updateCloseIdleLabel() {
+  const days = selectedIdleDays();
+  closeIdleBtn.textContent = `关闭近${days}天未访问`;
+  closeIdleBtn.dataset.label = closeIdleBtn.textContent;
+}
+
+function recentDayKeys(days) {
+  const keys = [];
+  const now = Date.now();
+  for (let i = 0; i < days; i += 1) {
+    keys.push(new Date(now - i * 86400000).toLocaleDateString('sv'));
+  }
+  return keys;
+}
+
+function tabLastSeen(tab, url) {
+  return lastActive[url] || tab.lastAccessed || 0;
+}
+
+function isIdleTab(tab, days) {
+  const url = tabUrlKey(tab.url);
+  const last = tabLastSeen(tab, url);
+  const cutoff = Date.now() - days * 86400000;
+  if (last && last >= cutoff) return false;
+  for (const day of recentDayKeys(days)) {
+    if (statsByDay[day]?.[url]) return false;
+  }
+  // 没有可靠活跃记录时不判定为闲置，避免误关
+  return Boolean(last) && last < cutoff;
 }
 
 function tabUrlKey(url) {
@@ -108,19 +144,19 @@ async function reload() {
     chrome.storage.local.get(['stats', 'lastActive', 'prefs']),
   ]);
   allTabs = tabs;
-  const today = new Date().toLocaleDateString('sv');
-  todayStats = (stored.stats || {})[today] || {};
+  statsByDay = stored.stats || {};
   lastActive = stored.lastActive || {};
 
   const prefs = stored.prefs || {};
   if (!sortSelect.dataset.ready) {
     if (prefs.sort) sortSelect.value = prefs.sort;
-    unvisitedOnly.checked = Boolean(prefs.unvisitedOnly);
+    idleOnly.checked = Boolean(prefs.idleOnly ?? prefs.unvisitedOnly);
+    if (prefs.idleDays) idleDays.value = String(prefs.idleDays);
     autoGroup.checked = prefs.autoGroup !== false;
     autoDedupe.checked = prefs.autoDedupe !== false;
     sortSelect.dataset.ready = '1';
   }
-
+  updateCloseIdleLabel();
   scheduleRender(true);
 }
 
@@ -128,7 +164,8 @@ function savePrefs() {
   chrome.storage.local.set({
     prefs: {
       sort: sortSelect.value,
-      unvisitedOnly: unvisitedOnly.checked,
+      idleOnly: idleOnly.checked,
+      idleDays: selectedIdleDays(),
       autoGroup: autoGroup.checked,
       autoDedupe: autoDedupe.checked,
     },
@@ -137,15 +174,18 @@ function savePrefs() {
 
 function buildViewModel() {
   const keyword = searchInput.value.trim().toLowerCase();
-  const onlyUnvisited = unvisitedOnly.checked;
+  const days = selectedIdleDays();
+  const onlyIdle = idleOnly.checked;
+  const today = new Date().toLocaleDateString('sv');
+  const todayStats = statsByDay[today] || {};
   const urlCounts = new Map();
-  let unvisitedTotal = 0;
+  let idleTotal = 0;
   let dupeTotal = 0;
 
   for (const tab of allTabs) {
     const url = tabUrlKey(tab.url);
     urlCounts.set(url, (urlCounts.get(url) || 0) + 1);
-    if (!todayStats[url]) unvisitedTotal += 1;
+    if (isIdleTab(tab, days)) idleTotal += 1;
   }
   for (const [url, count] of urlCounts) {
     if (count > 1 && /^https?:/.test(url)) dupeTotal += count - 1;
@@ -156,7 +196,7 @@ function buildViewModel() {
     const url = tabUrlKey(tab.url);
     const host = hostOf(tab.url);
     const count = todayStats[url] || 0;
-    if (onlyUnvisited && count > 0) continue;
+    if (onlyIdle && !isIdleTab(tab, days)) continue;
 
     const title = tab.title || tab.url || '(无标题)';
     if (keyword) {
@@ -170,7 +210,7 @@ function buildViewModel() {
       url,
       title,
       count,
-      last: lastActive[url] || tab.lastAccessed || 0,
+      last: tabLastSeen(tab, url),
       dupes: urlCounts.get(url) || 1,
     });
   }
@@ -205,7 +245,7 @@ function buildViewModel() {
     groups.sort((a, b) => b.items.length - a.items.length);
   }
 
-  return { keyword, items, groups, unvisitedTotal, dupeTotal };
+  return { keyword, items, groups, idleTotal, dupeTotal, days };
 }
 
 function renderTabRow(item, keyword, now) {
@@ -290,8 +330,8 @@ function render() {
   const view = buildViewModel();
   cachedItems = view.items;
 
-  summaryEl.textContent = `共 ${allTabs.length} 个 · 今日未访问 ${view.unvisitedTotal} 个 · 重复 ${view.dupeTotal} 个${
-    view.keyword || unvisitedOnly.checked ? ` · 显示 ${view.items.length} 个` : ''
+  summaryEl.textContent = `共 ${allTabs.length} 个 · 近${view.days}天闲置 ${view.idleTotal} 个 · 重复 ${view.dupeTotal} 个${
+    view.keyword || idleOnly.checked ? ` · 显示 ${view.items.length} 个` : ''
   }`;
 
   const frag = document.createDocumentFragment();
@@ -449,7 +489,12 @@ sortSelect.addEventListener('change', () => {
   savePrefs();
   scheduleRender(true);
 });
-unvisitedOnly.addEventListener('change', () => {
+idleOnly.addEventListener('change', () => {
+  savePrefs();
+  scheduleRender(true);
+});
+idleDays.addEventListener('change', () => {
+  updateCloseIdleLabel();
   savePrefs();
   scheduleRender(true);
 });
@@ -509,11 +554,12 @@ closeDuplicatesBtn.addEventListener('click', () => {
   confirmAction(closeDuplicatesBtn, ids.length, '关闭重复', () => chrome.tabs.remove(ids));
 });
 
-closeUnvisitedBtn.addEventListener('click', () => {
+closeIdleBtn.addEventListener('click', () => {
+  const days = selectedIdleDays();
   const targets = allTabs.filter(
-    (t) => !t.pinned && !t.active && !todayStats[tabUrlKey(t.url)]
+    (t) => !t.pinned && !t.active && /^https?:/.test(t.url || '') && isIdleTab(t, days)
   );
-  confirmAction(closeUnvisitedBtn, targets.length, '关闭未访问', () =>
+  confirmAction(closeIdleBtn, targets.length, `关闭近${days}天未访问`, () =>
     chrome.tabs.remove(targets.map((t) => t.id))
   );
 });

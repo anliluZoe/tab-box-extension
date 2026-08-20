@@ -23,7 +23,12 @@
   <div class="filters">
     <label class="filter"><input type="checkbox" id="auto-group" checked />自动分组</label>
     <label class="filter"><input type="checkbox" id="auto-dedupe" checked />自动去重</label>
-    <label class="filter"><input type="checkbox" id="unvisited-only" />仅今日未访问</label>
+    <label class="filter"><input type="checkbox" id="idle-only" />仅看闲置</label>
+    <select id="idle-days" title="判断闲置的时间范围">
+      <option value="1">近1天未访问</option>
+      <option value="2" selected>近2天未访问</option>
+      <option value="3">近3天未访问</option>
+    </select>
   </div>
 
   <div id="summary"></div>
@@ -32,7 +37,7 @@
 
   <footer>
     <button id="close-duplicates">关闭重复标签页</button>
-    <button id="close-unvisited" class="danger">关闭今日未访问</button>
+    <button id="close-idle" class="danger">关闭近2天未访问</button>
   </footer>
 
   <script src="popup.js"></script>
