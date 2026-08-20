@@ -1,5 +1,5 @@
-// 后台：访问统计、角标、右键菜单、自动分组/去重。
-// 性能要点：内存缓存偏好、角标增量更新、跳过无变化写入与已分组域名。
+// 后台：访问统计、右键菜单、自动分组/去重。
+// 性能要点：内存缓存偏好、跳过无变化写入与已分组域名。
 
 const KEEP_DAYS = 7;
 const COUNT_DEBOUNCE_MS = 3000;
@@ -9,8 +9,6 @@ const GROUP_COLORS = ['blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan'
 const HTTP_RE = /^https?:/;
 
 let writeQueue = Promise.resolve();
-let tabCount = 0;
-let badgeTimer = 0;
 let prefs = { autoGroup: true, autoDedupe: true };
 let cleanupDay = '';
 
@@ -96,24 +94,9 @@ function recordVisit(tab) {
     .catch(() => {});
 }
 
-function scheduleBadge() {
-  if (badgeTimer) return;
-  badgeTimer = setTimeout(async () => {
-    badgeTimer = 0;
-    try {
-      const text = tabCount > 99 ? '99+' : String(Math.max(0, tabCount));
-      await chrome.action.setBadgeText({ text });
-      await chrome.action.setBadgeBackgroundColor({ color: '#0F6B6B' });
-    } catch {
-      // ignore
-    }
-  }, 120);
-}
-
-async function refreshTabCount() {
+async function clearBadge() {
   try {
-    tabCount = (await chrome.tabs.query({})).length;
-    scheduleBadge();
+    await chrome.action.setBadgeText({ text: '' });
   } catch {
     // ignore
   }
@@ -326,13 +309,11 @@ async function rememberOpenTabs() {
   try {
     const tabs = await chrome.tabs.query({});
     const now = Date.now();
-    tabCount = tabs.length;
     for (const tab of tabs) {
       if (!tabOpenedAt.has(tab.id)) {
         tabOpenedAt.set(tab.id, now - (tabs.length - tab.index) * 10);
       }
     }
-    scheduleBadge();
   } catch {
     // ignore
   }
@@ -376,7 +357,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   } catch (err) {
     console.warn('右键菜单操作失败:', info.menuItemId, err);
   }
-  refreshTabCount();
 });
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -414,15 +394,11 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
 
 chrome.tabs.onCreated.addListener((tab) => {
   tabOpenedAt.set(tab.id, Date.now());
-  tabCount += 1;
-  scheduleBadge();
   scheduleAutoHousekeeping(tab);
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabOpenedAt.delete(tabId);
-  tabCount = Math.max(0, tabCount - 1);
-  scheduleBadge();
 });
 
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
@@ -438,14 +414,17 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
 chrome.runtime.onStartup.addListener(() => {
   loadPrefs();
   rememberOpenTabs();
+  clearBadge();
   setupContextMenus();
 });
 chrome.runtime.onInstalled.addListener(() => {
   loadPrefs();
   rememberOpenTabs();
+  clearBadge();
   setupContextMenus();
 });
 
 loadPrefs();
 rememberOpenTabs();
+clearBadge();
 setupContextMenus();
