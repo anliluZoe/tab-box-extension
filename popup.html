@@ -20,9 +20,8 @@
   <div class="toolbar">
     <button id="group-btn" class="primary" title="把每个窗口内相同域名的标签页合并成一个标签组">按域名分组</button>
     <button id="ungroup-btn" title="解散所有标签组，并暂时关闭自动分组">取消分组</button>
-    <select id="sort">
-      <option value="default">同域名靠在一起</option>
-      <option value="least">访问最少优先</option>
+    <select id="sort" title="只改变先后。同域名是否在一组里，由分组按钮和「自动分组」决定">
+      <option value="default">多标签域名优先</option>
       <option value="stale">最久未用优先</option>
     </select>
   </div>
