@@ -1,12 +1,10 @@
 const searchInput = document.getElementById('search');
 const sortSelect = document.getElementById('sort');
 const idleDays = document.getElementById('idle-days');
-const autoGroup = document.getElementById('auto-group');
 const autoDedupe = document.getElementById('auto-dedupe');
 const tabList = document.getElementById('tab-list');
 const summaryEl = document.getElementById('summary');
-const groupBtn = document.getElementById('group-btn');
-const ungroupBtn = document.getElementById('ungroup-btn');
+const groupToggle = document.getElementById('group-toggle');
 const closeDuplicatesBtn = document.getElementById('close-duplicates');
 const closeIdleBtn = document.getElementById('close-idle');
 const versionText = document.getElementById('version-text');
@@ -31,12 +29,11 @@ let closePreview = null;
 let renderTimer = 0;
 let cachedItems = [];
 let themeMode = 'system';
+let autoGroupOn = true;
 
 if (!supportsTabGroups) {
-  groupBtn.disabled = true;
-  ungroupBtn.disabled = true;
-  groupBtn.title = '当前浏览器不支持标签组 API，请升级 Edge / Chrome';
-  ungroupBtn.title = groupBtn.title;
+  groupToggle.disabled = true;
+  groupToggle.closest('.group-switch').title = '当前浏览器不支持标签组 API，请升级 Edge / Chrome';
 }
 
 function resolveTheme(mode) {
@@ -50,16 +47,23 @@ function applyTheme(mode = themeMode) {
 }
 
 function selectedIdleDays() {
-  // 「全部」没有时间窗口，关闭按钮沿用原先默认的近 2 天
+  // 还没选天数时，摘要里的闲置数量仍按近 2 天统计
   const n = Number(idleDays.value);
   if (!n) return 2;
   return Math.min(7, Math.max(1, n));
 }
 
 function updateCloseIdleLabel() {
-  const label = `关闭近${selectedIdleDays()}天未访问`;
-  closeIdleBtn.dataset.label = label;
-  if (confirmTarget !== closeIdleBtn) closeIdleBtn.textContent = label;
+  const pending = idleDays.value !== 'all';
+  const days = selectedIdleDays();
+  const count = pending ? allTabs.filter((t) => isIdleCloseTarget(t, days)).length : 0;
+  closeIdleBtn.disabled = !pending || count === 0;
+  closeIdleBtn.textContent = count ? `确认移除 ${count} 个` : '确认移除';
+  closeIdleBtn.title = !pending
+    ? '先选择未访问天数，列表会显示将要关闭的标签页'
+    : count
+      ? `关闭近${days}天未访问的 ${count} 个标签页`
+      : `没有近${days}天未访问的标签页`;
 }
 
 function recentDayKeys(days) {
@@ -181,10 +185,9 @@ async function reload() {
 
   const prefs = stored.prefs || {};
   if (!sortSelect.dataset.ready) {
-    // 旧「访问最少优先」并入「最久未用优先」；旧「同域名靠在一起」仍是 default
-    const sortWasLeast = prefs.sort === 'least';
-    if (sortWasLeast) sortSelect.value = 'stale';
-    else if (prefs.sort) sortSelect.value = prefs.sort;
+    // 旧「访问最少优先」并入「最久未用优先」；旧「标签多的在前」改为「最新访问优先」
+    const sortWasStale = prefs.sort === 'least' || prefs.sort === 'stale';
+    sortSelect.value = sortWasStale ? 'stale' : 'recent';
     const legacyFilter = 'idleOnly' in prefs || 'unvisitedOnly' in prefs;
     if (prefs.idleDays === 'all' || (prefs.idleDays && !legacyFilter)) {
       idleDays.value = String(prefs.idleDays);
@@ -193,23 +196,28 @@ async function reload() {
     } else {
       idleDays.value = 'all';
     }
-    autoGroup.checked = prefs.autoGroup !== false;
+    autoGroupOn = prefs.autoGroup !== false;
     autoDedupe.checked = prefs.autoDedupe !== false;
+    closeDuplicatesBtn.hidden = autoDedupe.checked;
     themeSelect.value = prefs.theme || 'system';
     applyTheme(themeSelect.value);
     sortSelect.dataset.ready = '1';
-    if (sortWasLeast) savePrefs();
+    if (prefs.sort !== sortSelect.value) savePrefs();
+    syncPicker(sortSelect);
+    syncPicker(idleDays);
+    syncPicker(themeSelect);
   }
+  if (supportsTabGroups) groupToggle.checked = autoGroupOn;
   updateCloseIdleLabel();
   scheduleRender(true);
 }
 
 function savePrefs() {
-  chrome.storage.local.set({
+  return chrome.storage.local.set({
     prefs: {
       sort: sortSelect.value,
       idleDays: idleDays.value,
-      autoGroup: autoGroup.checked,
+      autoGroup: autoGroupOn,
       autoDedupe: autoDedupe.checked,
       theme: themeSelect.value,
     },
@@ -264,9 +272,9 @@ function buildViewModel() {
     });
   }
 
-  if (sortSelect.value === 'stale') {
-    items.sort((a, b) => a.last - b.last);
-  }
+  const sortByStale = sortSelect.value === 'stale';
+  if (sortByStale) items.sort((a, b) => a.last - b.last);
+  else items.sort((a, b) => b.last - a.last);
 
   const groups = [];
   const index = new Map();
@@ -276,18 +284,17 @@ function buildViewModel() {
     if (g == null) {
       g = groups.length;
       index.set(key, g);
-      groups.push({ host: key, items: [], minLast: item.last || 0 });
+      groups.push({ host: key, items: [], minLast: item.last || 0, maxLast: item.last || 0 });
     }
     const group = groups[g];
     group.items.push(item);
-    if ((item.last || 0) < group.minLast) group.minLast = item.last || 0;
+    const seen = item.last || 0;
+    if (seen < group.minLast) group.minLast = seen;
+    if (seen > group.maxLast) group.maxLast = seen;
   }
 
-  if (sortSelect.value === 'stale') {
-    groups.sort((a, b) => a.minLast - b.minLast);
-  } else {
-    groups.sort((a, b) => b.items.length - a.items.length);
-  }
+  if (sortByStale) groups.sort((a, b) => a.minLast - b.minLast);
+  else groups.sort((a, b) => b.maxLast - a.maxLast);
 
   return { keyword, items, groups, idleTotal, dupeTotal, days };
 }
@@ -383,7 +390,11 @@ function render() {
   if (view.items.length === 0) {
     const tip = document.createElement('li');
     tip.className = 'empty-tip';
-    tip.textContent = view.keyword ? '没有匹配的标签页' : '没有符合条件的标签页';
+    tip.textContent = view.keyword
+      ? '没有匹配的标签页'
+      : idleDays.value !== 'all'
+        ? `没有近${view.days}天未访问的标签页`
+        : '没有符合条件的标签页';
     frag.appendChild(tip);
     tabList.replaceChildren(frag);
     return;
@@ -544,14 +555,9 @@ themeSelect.addEventListener('change', () => {
   applyTheme(themeSelect.value);
   savePrefs();
 });
-autoGroup.addEventListener('change', () => {
-  clearClosePreview();
-  savePrefs();
-  scheduleRender(true);
-  if (autoGroup.checked) chrome.runtime.sendMessage({ type: 'group-all-now' });
-});
 autoDedupe.addEventListener('change', () => {
   clearClosePreview();
+  closeDuplicatesBtn.hidden = autoDedupe.checked;
   savePrefs();
   scheduleRender(true);
   if (autoDedupe.checked) chrome.runtime.sendMessage({ type: 'dedupe-all-now' });
@@ -589,23 +595,26 @@ searchInput.addEventListener('keydown', (e) => {
   }
 });
 
-groupBtn.addEventListener('click', async () => {
+groupToggle.addEventListener('change', async () => {
   if (!supportsTabGroups) return;
+  const turnOn = groupToggle.checked;
+  autoGroupOn = turnOn;
+  groupToggle.disabled = true;
   clearClosePreview();
-  await chrome.runtime.sendMessage({ type: 'group-all-now' });
-  reload();
-});
-
-ungroupBtn.addEventListener('click', async () => {
-  if (!supportsTabGroups) return;
-  clearClosePreview();
-  const tabs = await chrome.tabs.query({});
-  const noneId = chrome.tabGroups.TAB_GROUP_ID_NONE;
-  const grouped = tabs.filter((t) => t.groupId !== noneId);
-  if (grouped.length) await chrome.tabs.ungroup(grouped.map((t) => t.id));
-  autoGroup.checked = false;
-  savePrefs();
-  reload();
+  try {
+    await savePrefs();
+    if (turnOn) {
+      await chrome.runtime.sendMessage({ type: 'group-all-now' });
+    } else {
+      const tabs = await chrome.tabs.query({});
+      const noneId = chrome.tabGroups.TAB_GROUP_ID_NONE;
+      const grouped = tabs.filter((t) => t.groupId !== noneId);
+      if (grouped.length) await chrome.tabs.ungroup(grouped.map((t) => t.id));
+    }
+  } finally {
+    await reload();
+    if (supportsTabGroups) groupToggle.disabled = false;
+  }
 });
 
 closeDuplicatesBtn.addEventListener('click', () => {
@@ -613,12 +622,14 @@ closeDuplicatesBtn.addEventListener('click', () => {
   confirmAction(closeDuplicatesBtn, ids.length, '关闭重复', () => chrome.tabs.remove(ids));
 });
 
-closeIdleBtn.addEventListener('click', () => {
+closeIdleBtn.addEventListener('click', async () => {
+  if (idleDays.value === 'all' || closeIdleBtn.disabled) return;
   const days = selectedIdleDays();
-  const targets = allTabs.filter((t) => isIdleCloseTarget(t, days));
-  confirmAction(closeIdleBtn, targets.length, `关闭近${days}天未访问`, () =>
-    chrome.tabs.remove(targets.map((t) => t.id))
-  );
+  const ids = allTabs.filter((t) => isIdleCloseTarget(t, days)).map((t) => t.id);
+  if (!ids.length) return;
+  clearClosePreview();
+  await chrome.tabs.remove(ids);
+  reload();
 });
 
 function parseVersion(raw) {
@@ -687,6 +698,104 @@ checkUpdateBtn.addEventListener('click', async () => {
     checkUpdateBtn.classList.remove('busy');
     checkUpdateBtn.textContent = '检查更新';
   }
+});
+
+function syncPicker(select) {
+  const picker = select.closest('.picker');
+  if (!picker) return;
+  picker.querySelector('.picker-label').textContent = select.selectedOptions[0]?.textContent || '';
+  picker.querySelectorAll('.picker-option').forEach((btn) => {
+    const on = btn.dataset.value === select.value;
+    btn.classList.toggle('is-selected', on);
+    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+}
+
+function closePickers(except) {
+  document.querySelectorAll('.picker.is-open').forEach((picker) => {
+    if (picker === except) return;
+    picker.classList.remove('is-open');
+    picker.querySelector('.picker-menu').hidden = true;
+    picker.querySelector('.picker-trigger').setAttribute('aria-expanded', 'false');
+  });
+}
+
+for (const select of document.querySelectorAll('select')) {
+  const picker = document.createElement('div');
+  picker.className = 'picker' + (select.id === 'theme' ? ' picker-compact' : '');
+  select.parentNode.insertBefore(picker, select);
+  picker.appendChild(select);
+  select.classList.add('picker-native');
+  select.tabIndex = -1;
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'picker-trigger';
+  trigger.title = select.title;
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-expanded', 'false');
+  const label = document.createElement('span');
+  label.className = 'picker-label';
+  const chevron = document.createElement('span');
+  chevron.className = 'picker-chevron';
+  chevron.setAttribute('aria-hidden', 'true');
+  trigger.append(label, chevron);
+
+  const menu = document.createElement('div');
+  menu.className = 'picker-menu';
+  menu.hidden = true;
+  menu.setAttribute('role', 'listbox');
+  for (const option of select.options) {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'picker-option';
+    item.dataset.value = option.value;
+    item.textContent = option.textContent;
+    item.setAttribute('role', 'option');
+    menu.appendChild(item);
+  }
+
+  picker.append(trigger, menu);
+  syncPicker(select);
+
+  trigger.addEventListener('click', () => {
+    const willOpen = menu.hidden;
+    closePickers(picker);
+    if (!willOpen) return;
+    menu.hidden = false;
+    picker.classList.add('is-open');
+    trigger.setAttribute('aria-expanded', 'true');
+    const triggerRect = trigger.getBoundingClientRect();
+    picker.classList.toggle('is-up', window.innerHeight - triggerRect.bottom < menu.offsetHeight + 12);
+    menu.style.left = '0';
+    menu.style.right = 'auto';
+    if (menu.getBoundingClientRect().right > window.innerWidth - 8) {
+      menu.style.left = 'auto';
+      menu.style.right = '0';
+    }
+  });
+
+  menu.addEventListener('click', (e) => {
+    const item = e.target.closest('.picker-option');
+    if (!item || item.dataset.value === select.value) {
+      closePickers();
+      return;
+    }
+    select.value = item.dataset.value;
+    syncPicker(select);
+    closePickers();
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.picker')) closePickers();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !document.querySelector('.picker.is-open')) return;
+  e.stopPropagation();
+  closePickers();
 });
 
 reload();
