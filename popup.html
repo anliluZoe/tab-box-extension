@@ -7,54 +7,61 @@
 </head>
 <body>
   <header class="top">
-    <div class="brand">
-      <img class="brand-icon" src="icons/icon48.png" alt="" width="28" height="28" />
-      <div class="brand-text">
-        <div class="brand-name">标签盒</div>
-        <div class="brand-sub">把散落的标签页收进盒子</div>
+    <div class="brand-row">
+      <div class="brand">
+        <img class="brand-icon" src="icons/icon48.png" alt="" width="28" height="28" />
+        <div class="brand-text">
+          <div class="brand-name">标签盒</div>
+          <div class="brand-sub">把散落的标签页收进盒子</div>
+        </div>
+      </div>
+      <div class="meta-bar">
+        <div class="meta-actions">
+          <select id="theme" title="界面主题">
+            <option value="system">跟随系统</option>
+            <option value="light">浅色</option>
+            <option value="dark">深色</option>
+          </select>
+          <button type="button" id="check-update">检查更新</button>
+        </div>
+        <span id="version-text"></span>
       </div>
     </div>
     <input id="search" type="search" placeholder="搜索标题 / 网址 / 域名，↑↓ 选择，回车跳转" autofocus autocomplete="off" />
   </header>
 
   <div class="toolbar">
-    <button id="group-btn" class="primary" title="把每个窗口内相同域名的标签页合并成一个标签组">按域名分组</button>
-    <button id="ungroup-btn" title="解散所有标签组，并暂时关闭自动分组">取消分组</button>
-    <select id="sort" title="只改变先后。同域名是否在一组里，由分组按钮和「自动分组」决定">
-      <option value="default">多标签域名优先</option>
-      <option value="stale">最久未用优先</option>
-    </select>
-  </div>
-
-  <div class="filters">
-    <label class="filter"><input type="checkbox" id="auto-group" checked />自动分组</label>
+    <label class="group-switch" title="打开后按域名合并成标签组，新开的同域名标签也会自动并入。关闭后解散所有标签组。">
+      <input type="checkbox" id="group-toggle" checked />
+      <span class="group-switch-ui">
+        <span class="group-switch-text">按域名分组</span>
+        <span class="group-switch-track" aria-hidden="true"><span class="group-switch-knob"></span></span>
+      </span>
+    </label>
     <label class="filter"><input type="checkbox" id="auto-dedupe" checked />自动去重</label>
-    <select id="idle-days" title="按未访问时间筛选列表">
-      <option value="all" selected>全部</option>
-      <option value="1">近1天未访问</option>
-      <option value="2">近2天未访问</option>
-      <option value="3">近3天未访问</option>
-    </select>
   </div>
 
   <div class="status-row">
     <div id="summary"></div>
-    <div class="meta-bar">
-      <select id="theme" title="界面主题">
-        <option value="system">跟随系统</option>
-        <option value="light">浅色</option>
-        <option value="dark">深色</option>
-      </select>
-      <span id="version-text"></span>
-      <button type="button" id="check-update">检查更新</button>
-    </div>
+    <select id="sort" title="只改变先后，按最后打开时间排">
+      <option value="recent" selected>最新访问优先</option>
+      <option value="stale">最久未用优先</option>
+    </select>
   </div>
 
   <ul id="tab-list"></ul>
 
   <footer>
-    <button id="close-duplicates">关闭重复标签页</button>
-    <button id="close-idle" class="danger">关闭近2天未访问</button>
+    <button id="close-duplicates" hidden>关闭重复标签页</button>
+    <div class="close-idle-bar">
+      <select id="idle-days" title="先选择天数，列表会只显示这些标签页">
+        <option value="all" selected>选择未访问天数</option>
+        <option value="1">近1天未访问</option>
+        <option value="2">近2天未访问</option>
+        <option value="3">近3天未访问</option>
+      </select>
+      <button id="close-idle" class="danger" type="button" disabled>确认移除</button>
+    </div>
   </footer>
 
   <script src="popup.js"></script>
