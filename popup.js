@@ -181,7 +181,10 @@ async function reload() {
 
   const prefs = stored.prefs || {};
   if (!sortSelect.dataset.ready) {
-    if (prefs.sort) sortSelect.value = prefs.sort;
+    // 旧「访问最少优先」并入「最久未用优先」；旧「同域名靠在一起」仍是 default
+    const sortWasLeast = prefs.sort === 'least';
+    if (sortWasLeast) sortSelect.value = 'stale';
+    else if (prefs.sort) sortSelect.value = prefs.sort;
     const legacyFilter = 'idleOnly' in prefs || 'unvisitedOnly' in prefs;
     if (prefs.idleDays === 'all' || (prefs.idleDays && !legacyFilter)) {
       idleDays.value = String(prefs.idleDays);
@@ -195,6 +198,7 @@ async function reload() {
     themeSelect.value = prefs.theme || 'system';
     applyTheme(themeSelect.value);
     sortSelect.dataset.ready = '1';
+    if (sortWasLeast) savePrefs();
   }
   updateCloseIdleLabel();
   scheduleRender(true);
@@ -260,9 +264,7 @@ function buildViewModel() {
     });
   }
 
-  if (sortSelect.value === 'least') {
-    items.sort((a, b) => a.count - b.count || a.last - b.last);
-  } else if (sortSelect.value === 'stale') {
+  if (sortSelect.value === 'stale') {
     items.sort((a, b) => a.last - b.last);
   }
 
@@ -274,17 +276,14 @@ function buildViewModel() {
     if (g == null) {
       g = groups.length;
       index.set(key, g);
-      groups.push({ host: key, items: [], minCount: item.count, minLast: item.last || 0 });
+      groups.push({ host: key, items: [], minLast: item.last || 0 });
     }
     const group = groups[g];
     group.items.push(item);
-    if (item.count < group.minCount) group.minCount = item.count;
     if ((item.last || 0) < group.minLast) group.minLast = item.last || 0;
   }
 
-  if (sortSelect.value === 'least') {
-    groups.sort((a, b) => a.minCount - b.minCount || b.items.length - a.items.length);
-  } else if (sortSelect.value === 'stale') {
+  if (sortSelect.value === 'stale') {
     groups.sort((a, b) => a.minLast - b.minLast);
   } else {
     groups.sort((a, b) => b.items.length - a.items.length);
