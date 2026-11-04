@@ -538,17 +538,6 @@ button.danger:hover {
   white-space: nowrap;
 }
 
-#check-update {
-  padding: 4px 10px;
-  font-size: 11px;
-  box-shadow: none;
-}
-
-#check-update.busy {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
 mark {
   background: var(--yellow-soft);
   color: inherit;

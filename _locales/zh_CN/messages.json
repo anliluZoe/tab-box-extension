@@ -20,9 +20,6 @@
   "themeDark": {
     "message": "深色"
   },
-  "checkUpdate": {
-    "message": "检查更新"
-  },
   "searchPlaceholder": {
     "message": "搜索标题 / 网址 / 域名，↑↓ 选择，回车跳转"
   },
@@ -223,34 +220,6 @@
   "confirmNothingDuplicates": {
     "message": "没有可关闭重复的标签页"
   },
-  "updateChecking": {
-    "message": "检查中…"
-  },
-  "updateLatest": {
-    "message": "已是最新版本 v$VERSION$",
-    "placeholders": {
-      "version": {
-        "content": "$1"
-      }
-    }
-  },
-  "updateFound": {
-    "message": "发现新版本 $LATEST$（当前 v$CURRENT$），正在打开下载页…",
-    "placeholders": {
-      "latest": {
-        "content": "$1"
-      },
-      "current": {
-        "content": "$2"
-      }
-    }
-  },
-  "updateFailed": {
-    "message": "检查更新失败，请稍后重试或手动打开 GitHub Release 页"
-  },
-  "updateNoRelease": {
-    "message": "未找到可用的 Release"
-  },
   "menuRoot": {
     "message": "标签盒"
   },
@@ -277,8 +246,5 @@
   },
   "menuCloseSameSiteAll": {
     "message": "关闭同域名全部标签页"
-  },
-  "menuCheckUpdate": {
-    "message": "检查更新"
   }
 }

@@ -3,9 +3,8 @@
   "default_locale": "en",
   "name": "__MSG_extName__",
   "description": "__MSG_extDesc__",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "permissions": ["tabs", "tabGroups", "storage", "contextMenus"],
-  "host_permissions": ["https://api.github.com/*"],
   "background": {
     "service_worker": "background.js"
   },

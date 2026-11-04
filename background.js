@@ -292,8 +292,6 @@ async function setupContextMenus() {
       { id: 'sep-1', type: 'separator' },
       { id: 'close-same-domain-others', title: msg('menuCloseSameSiteOthers') },
       { id: 'close-same-domain-all', title: msg('menuCloseSameSiteAll') },
-      { id: 'sep-2', type: 'separator' },
-      { id: 'check-update', title: msg('menuCheckUpdate') },
     ];
 
     for (const item of items) {
@@ -350,11 +348,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         break;
       case 'close-same-domain-all':
         await closeSameDomainTabs(tab, false);
-        break;
-      case 'check-update':
-        await chrome.tabs.create({
-          url: 'https://github.com/anliluZoe/tab-box-extension/releases/latest',
-        });
         break;
       default:
         break;

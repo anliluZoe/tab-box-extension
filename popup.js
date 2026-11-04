@@ -8,7 +8,6 @@ const groupToggle = document.getElementById('group-toggle');
 const closeDuplicatesBtn = document.getElementById('close-duplicates');
 const closeIdleBtn = document.getElementById('close-idle');
 const versionText = document.getElementById('version-text');
-const checkUpdateBtn = document.getElementById('check-update');
 const themeSelect = document.getElementById('theme');
 
 // 文案统一走 chrome.i18n：语言由浏览器 UI 语言决定，缺 en 时回落英文（默认语言）
@@ -38,7 +37,6 @@ function localizeDocument() {
 // 必须在下面构建自定义下拉之前执行，否则选项会保留 HTML 里的英文占位文案
 localizeDocument();
 
-const UPDATE_REPOS = ['anliluZoe/tab-box-extension', 'anliluZoe/brower-extension'];
 const manifestVersion = chrome.runtime.getManifest().version;
 versionText.textContent = t('versionText', manifestVersion);
 
@@ -664,74 +662,6 @@ closeIdleBtn.addEventListener('click', async () => {
   clearClosePreview();
   await chrome.tabs.remove(ids);
   reload();
-});
-
-function parseVersion(raw) {
-  return String(raw || '')
-    .trim()
-    .replace(/^v/i, '')
-    .split(/[.+-]/)
-    .filter(Boolean)
-    .map((part) => {
-      const n = Number.parseInt(part, 10);
-      return Number.isFinite(n) ? n : 0;
-    });
-}
-
-function compareVersion(a, b) {
-  const left = parseVersion(a);
-  const right = parseVersion(b);
-  const len = Math.max(left.length, right.length);
-  for (let i = 0; i < len; i += 1) {
-    const x = left[i] || 0;
-    const y = right[i] || 0;
-    if (x !== y) return x - y;
-  }
-  return 0;
-}
-
-async function fetchLatestRelease() {
-  let lastError;
-  for (const repo of UPDATE_REPOS) {
-    try {
-      const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
-        headers: { Accept: 'application/vnd.github+json' },
-      });
-      if (res.status === 404) continue;
-      if (!res.ok) throw new Error(`GitHub API ${res.status}`);
-      const data = await res.json();
-      if (data?.tag_name) return data;
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError || new Error(t('updateNoRelease'));
-}
-
-checkUpdateBtn.addEventListener('click', async () => {
-  checkUpdateBtn.classList.add('busy');
-  checkUpdateBtn.textContent = t('updateChecking');
-  try {
-    const release = await fetchLatestRelease();
-    const latest = release.tag_name;
-    const pageUrl = release.html_url;
-    const zip = (release.assets || []).find(
-      (a) => /\.zip$/i.test(a.name) && /tab-box/i.test(a.name)
-    ) || (release.assets || []).find((a) => /\.zip$/i.test(a.name));
-
-    if (compareVersion(latest, manifestVersion) > 0) {
-      summaryEl.textContent = t('updateFound', [latest, manifestVersion]);
-      await chrome.tabs.create({ url: zip?.browser_download_url || pageUrl });
-    } else {
-      summaryEl.textContent = t('updateLatest', manifestVersion);
-    }
-  } catch (err) {
-    console.warn('检查更新失败:', err);
-    summaryEl.textContent = t('updateFailed');
-  } finally {
-    checkUpdateBtn.classList.remove('busy');
-    checkUpdateBtn.textContent = t('checkUpdate');
-  }
 });
 
 function syncPicker(select) {

@@ -37,14 +37,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 从 main 检出：PR 事件默认检出的 refs/pull/N/merge 不在 main 历史里，没法往上提交版本号
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Read metadata
+      - name: Resolve version
         id: meta
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           VERSION=$(node -p "require('./manifest.json').version")
+          SOURCE_SHA=$(git rev-parse HEAD)
           # manifest 里是 __MSG_extName__ 占位，浏览器内的真实英文名在默认语言包里
           NAME=$(node -p "require('./_locales/en/messages.json').extName.message" 2>/dev/null || echo "Tab Box")
           case "$NAME" in
@@ -53,17 +59,70 @@ jobs:
               exit 1
               ;;
           esac
-          SHORT_SHA="${GITHUB_SHA::7}"
-          TAG="v${VERSION}"
 
-          if git rev-parse "$TAG" >/dev/null 2>&1 || gh release view "$TAG" >/dev/null 2>&1; then
-            TAG="v${VERSION}-${SHORT_SHA}"
-            echo "::warning::版本 ${VERSION} 已有同名 tag，本次 release 追加了 commit 后缀。商店不接受重复版本号，要提交商店请先递增 manifest.json 的 version。"
+          released() {
+            git rev-parse "refs/tags/$1" >/dev/null 2>&1 || gh release view "$1" >/dev/null 2>&1
+          }
+
+          # 版本号只允许 1-4 段 0-65535 的整数（Chromium 的限制），末段 +1
+          next_version() {
+            node -e '
+          const v = String(process.argv[1]).split(".").map((s) => Number(s));
+          if (v.length < 1 || v.length > 4 || v.some((n) => !Number.isInteger(n) || n < 0 || n > 65535)) {
+            process.exit(2);
+          }
+          while (v.length < 3) v.push(0);
+          v[v.length - 1] += 1;
+          process.stdout.write(v.join("."));
+          ' "$1"
+          }
+
+          BUMPED=false
+          if released "v${VERSION}"; then
+            OLD_VERSION="$VERSION"
+            if ! VERSION=$(next_version "$OLD_VERSION"); then
+              echo "::error::manifest.json 的 version 不是合法版本号（1-4 段 0-65535 整数）：$OLD_VERSION"
+              exit 1
+            fi
+            while released "v${VERSION}"; do
+              VERSION=$(next_version "$VERSION")
+            done
+
+            cat > /tmp/bump-version.js <<'EOF'
+          const fs = require('fs');
+          const next = process.argv[2];
+          const before = fs.readFileSync('manifest.json', 'utf8');
+          const after = before.replace(/"version":\s*"[^"]+"/, `"version": "${next}"`);
+          if (after === before) {
+            console.error('manifest.json 里找不到 version 字段');
+            process.exit(1);
+          }
+          fs.writeFileSync('manifest.json', after);
+          EOF
+            node /tmp/bump-version.js "$VERSION"
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add manifest.json
+            git commit -m "chore(release): v${VERSION} [skip ci]"
+            if ! git push origin HEAD:main; then
+              echo "::error::无法把版本号提交推回 main，可能被分支保护规则拦住。"
+              echo "::error::请允许 github-actions[bot] 直接推送，或在 PR 里手动改 manifest.json 的 version。"
+              exit 1
+            fi
+
+            BUMPED=true
+            echo "::notice::版本 ${OLD_VERSION} 已经发布过，自动递增到 ${VERSION}"
+          else
+            echo "::notice::使用 manifest.json 里的版本 ${VERSION}（PR 里已手动改过）"
           fi
 
+          TAG="v${VERSION}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "source-sha=$SOURCE_SHA" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "bumped=$BUMPED" >> "$GITHUB_OUTPUT"
           echo "unpacked=tab-box-${TAG}.zip" >> "$GITHUB_OUTPUT"
           echo "store=tab-box-${TAG}-edge-store.zip" >> "$GITHUB_OUTPUT"
 
@@ -119,7 +178,8 @@ jobs:
           STORE: ${{ steps.meta.outputs.store }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          COMMIT: ${{ github.sha }}
+          COMMIT: ${{ steps.meta.outputs.source-sha }}
+          BUMPED: ${{ steps.meta.outputs.bumped }}
         run: |
           set -euo pipefail
           {
@@ -156,10 +216,15 @@ jobs:
               echo "- 手动触发"
             fi
             echo "- Commit: ${COMMIT}"
+            if [ "${BUMPED}" = "true" ]; then
+              echo
+              echo "> 版本号由 CI 自动递增（原版本已发布过），已提交回 \`main\`。"
+            fi
           } > RELEASE_NOTES.md
 
           gh release create "$TAG" "$UNPACKED" "$STORE" SHA256SUMS.txt \
             --title "${NAME} ${TAG}" \
+            --target "$(git rev-parse HEAD)" \
             --notes-file RELEASE_NOTES.md
           echo "Release: https://github.com/${REPO}/releases/tag/${TAG}"
 

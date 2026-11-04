@@ -20,9 +20,6 @@
   "themeDark": {
     "message": "Dark"
   },
-  "checkUpdate": {
-    "message": "Check for updates"
-  },
   "searchPlaceholder": {
     "message": "Search title, URL or domain — ↑↓ to pick, Enter to open"
   },
@@ -223,34 +220,6 @@
   "confirmNothingDuplicates": {
     "message": "No duplicate tabs to close"
   },
-  "updateChecking": {
-    "message": "Checking…"
-  },
-  "updateLatest": {
-    "message": "Already on the latest version, v$VERSION$",
-    "placeholders": {
-      "version": {
-        "content": "$1"
-      }
-    }
-  },
-  "updateFound": {
-    "message": "Version $LATEST$ is available (you have v$CURRENT$) — opening the download page…",
-    "placeholders": {
-      "latest": {
-        "content": "$1"
-      },
-      "current": {
-        "content": "$2"
-      }
-    }
-  },
-  "updateFailed": {
-    "message": "Update check failed. Try again later, or open the GitHub Releases page manually."
-  },
-  "updateNoRelease": {
-    "message": "No usable release found"
-  },
   "menuRoot": {
     "message": "Tab Box"
   },
@@ -277,8 +246,5 @@
   },
   "menuCloseSameSiteAll": {
     "message": "Close all tabs of this site"
-  },
-  "menuCheckUpdate": {
-    "message": "Check for updates"
   }
 }

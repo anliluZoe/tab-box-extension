@@ -70,16 +70,10 @@
 
 <h2>4. Network requests</h2>
 <p>
-  The extension makes exactly one kind of network request, and only when you explicitly
-  click <em>"Check for updates"</em>: it asks the public GitHub API
-  (<code>https://api.github.com</code>) for the latest release of the extension's own
-  repository, in order to compare version numbers. This request contains no personal data —
-  no identifiers, no browsing history, no tab information. It is never made on install, at
-  browser startup, or while you browse.
-</p>
-<p>
-  If a newer version is found, your browser opens the public GitHub release page so you can
-  download it manually. The extension itself never downloads or installs anything.
+  The extension makes <strong>no network requests at all</strong>. It never contacts the
+  developer's servers or any third-party service, and it does not check for updates by
+  itself. Updates are delivered by the browser's extension store (Microsoft Edge Add-ons or
+  the Chrome Web Store), which handles version checks and installation outside the extension.
 </p>
 
 <h2>5. Sharing and disclosure</h2>
@@ -99,8 +93,6 @@
       device (required because the extension's background worker restarts).</li>
   <li><strong>contextMenus</strong> — add the "标签盒" right-click submenu as a shortcut to the
       same actions available in the popup.</li>
-  <li><strong>Host permission <code>https://api.github.com/*</code></strong> — allow the
-      optional update check described in section 4.</li>
 </ul>
 
 <h2>7. Children</h2>
@@ -166,11 +158,9 @@
 
 <h2>四、网络请求</h2>
 <p>
-  扩展只有一种网络请求，且仅在你主动点击「检查更新」时发起：向公开的 GitHub API
-  （<code>https://api.github.com</code>）查询本扩展自己仓库的最新 Release，用于比较版本号。
-  该请求不包含任何个人数据——没有标识符、没有浏览记录、没有标签页信息。安装时、浏览器启动时、
-  浏览网页时都不会发起请求。若发现新版本，浏览器会打开公开的 GitHub Release 页面由你手动下载，
-  扩展本身不下载、不安装任何东西。
+  扩展<strong>不发起任何网络请求</strong>：既不访问开发者服务器，也不访问任何第三方服务，
+  自身也不检查更新。版本更新由浏览器扩展商店（Microsoft Edge 加载项或 Chrome 应用商店）负责，
+  与本扩展无关。
 </p>
 
 <h2>五、共享与披露</h2>
@@ -185,7 +175,6 @@
   <li><strong>tabGroups</strong>：创建、命名、上色和更新标签组，把同域名标签页并入同一组。</li>
   <li><strong>storage</strong>：在本机保存两个设置项和 7 天活跃记录（扩展后台会被浏览器重启，必须持久化）。</li>
   <li><strong>contextMenus</strong>：添加「标签盒」右键子菜单，作为弹窗中已有功能的快捷入口。</li>
-  <li><strong>主机权限 <code>https://api.github.com/*</code></strong>：用于第四节所述的检查更新功能。</li>
 </ul>
 
 <h2>七、儿童</h2>
