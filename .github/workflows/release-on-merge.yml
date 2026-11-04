@@ -124,12 +124,14 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "bumped=$BUMPED" >> "$GITHUB_OUTPUT"
           echo "unpacked=tab-box-${TAG}.zip" >> "$GITHUB_OUTPUT"
-          echo "store=tab-box-${TAG}-edge-store.zip" >> "$GITHUB_OUTPUT"
+          echo "edge-store=tab-box-${TAG}-edge-store.zip" >> "$GITHUB_OUTPUT"
+          echo "chrome-store=tab-box-${TAG}-chrome-store.zip" >> "$GITHUB_OUTPUT"
 
       - name: Build packages
         env:
           UNPACKED: ${{ steps.meta.outputs.unpacked }}
-          STORE: ${{ steps.meta.outputs.store }}
+          EDGE_STORE: ${{ steps.meta.outputs.edge-store }}
+          CHROME_STORE: ${{ steps.meta.outputs.chrome-store }}
           EXPECTED_VERSION: ${{ steps.meta.outputs.version }}
         run: |
           set -euo pipefail
@@ -143,30 +145,39 @@ jobs:
           zip -r -X "$UNPACKED" tab-box -x "*.DS_Store"
 
           # 2) Edge 商店用：manifest.json 必须在 zip 根目录，不能有顶层文件夹
-          #    文件清单与 scripts/build-edge-package.ps1 保持一致
-          zip -r -X "$STORE" manifest.json background.js popup.html popup.css popup.js LICENSE icons _locales -x "*.DS_Store"
+          #    文件清单与 scripts/build-store-package.ps1 保持一致
+          zip -r -X "$EDGE_STORE" manifest.json background.js popup.html popup.css popup.js LICENSE icons _locales -x "*.DS_Store"
 
-          # 自检 1：根目录必须有 manifest.json
-          if ! unzip -Z1 "$STORE" | grep -qx 'manifest.json'; then
-            echo "::error::商店包根目录缺少 manifest.json"; exit 1
-          fi
-          # 自检 2：manifest.json 不能被顶层文件夹包裹
-          if unzip -Z1 "$STORE" | grep -qE '^[^/]+/manifest\.json$'; then
-            echo "::error::商店包里 manifest.json 被顶层文件夹包裹，商店会拒收"; exit 1
-          fi
-          # 自检 3：条目分隔符必须是正斜杠
-          if unzip -Z1 "$STORE" | grep -q '\\'; then
-            echo "::error::压缩包条目使用了反斜杠分隔符"; exit 1
-          fi
-          # 自检 4：包内版本号与本次发布版本一致
-          INNER_VERSION=$(unzip -p "$STORE" manifest.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
-          if [ "$INNER_VERSION" != "$EXPECTED_VERSION" ]; then
-            echo "::error::包内版本 $INNER_VERSION 与发布版本 $EXPECTED_VERSION 不一致"; exit 1
-          fi
+          # 3) Chrome Web Store 用：包结构与 Edge 相同，manifest.json 必须在根目录
+          zip -r -X "$CHROME_STORE" manifest.json background.js popup.html popup.css popup.js LICENSE icons _locales -x "*.DS_Store"
 
-          sha256sum "$UNPACKED" "$STORE" | tee SHA256SUMS.txt
-          echo "--- $STORE ---"
-          unzip -l "$STORE"
+          for STORE_PKG in "$EDGE_STORE" "$CHROME_STORE"; do
+            STORE_NAME=$(basename "$STORE_PKG")
+
+            # 自检 1：根目录必须有 manifest.json
+            if ! unzip -Z1 "$STORE_PKG" | grep -qx 'manifest.json'; then
+              echo "::error::${STORE_NAME} 根目录缺少 manifest.json"; exit 1
+            fi
+            # 自检 2：manifest.json 不能被顶层文件夹包裹
+            if unzip -Z1 "$STORE_PKG" | grep -qE '^[^/]+/manifest\.json$'; then
+              echo "::error::${STORE_NAME} 里 manifest.json 被顶层文件夹包裹，商店会拒收"; exit 1
+            fi
+            # 自检 3：条目分隔符必须是正斜杠
+            if unzip -Z1 "$STORE_PKG" | grep -q '\\'; then
+              echo "::error::${STORE_NAME} 的压缩包条目使用了反斜杠分隔符"; exit 1
+            fi
+            # 自检 4：包内版本号与本次发布版本一致
+            INNER_VERSION=$(unzip -p "$STORE_PKG" manifest.json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")
+            if [ "$INNER_VERSION" != "$EXPECTED_VERSION" ]; then
+              echo "::error::${STORE_NAME} 的包内版本 $INNER_VERSION 与发布版本 $EXPECTED_VERSION 不一致"; exit 1
+            fi
+          done
+
+          sha256sum "$UNPACKED" "$EDGE_STORE" "$CHROME_STORE" | tee SHA256SUMS.txt
+          echo "--- $EDGE_STORE ---"
+          unzip -l "$EDGE_STORE"
+          echo "--- $CHROME_STORE ---"
+          unzip -l "$CHROME_STORE"
 
       - name: Create GitHub Release
         env:
@@ -175,7 +186,8 @@ jobs:
           TAG: ${{ steps.meta.outputs.tag }}
           NAME: ${{ steps.meta.outputs.name }}
           UNPACKED: ${{ steps.meta.outputs.unpacked }}
-          STORE: ${{ steps.meta.outputs.store }}
+          EDGE_STORE: ${{ steps.meta.outputs.edge-store }}
+          CHROME_STORE: ${{ steps.meta.outputs.chrome-store }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           COMMIT: ${{ steps.meta.outputs.source-sha }}
@@ -192,7 +204,8 @@ jobs:
             echo "| 文件 | 用途 |"
             echo "| --- | --- |"
             echo "| \`${UNPACKED}\` | 解压得到 \`tab-box/\`，本地「加载解压缩的扩展」 |"
-            echo "| \`${STORE}\` | \`manifest.json\` 在根目录，直接上传 Edge 加载项商店 |"
+            echo "| \`${EDGE_STORE}\` | \`manifest.json\` 在根目录，直接上传 Edge 加载项商店 |"
+            echo "| \`${CHROME_STORE}\` | \`manifest.json\` 在根目录，直接上传 Chrome Web Store |"
             echo
             echo "### 本地安装"
             echo "1. 下载 \`${UNPACKED}\` 并解压（得到 \`tab-box\` 文件夹）"
@@ -201,7 +214,12 @@ jobs:
             echo
             echo "### 上传 Edge 商店"
             echo "1. 打开 https://partner.microsoft.com/dashboard/microsoftedge ，进入本扩展"
-            echo "2. 「更新」→ 上传 \`${STORE}\`"
+            echo "2. 「更新」→ 上传 \`${EDGE_STORE}\`"
+            echo "3. 更新 listing 后提交审核"
+            echo
+            echo "### 上传 Chrome Web Store"
+            echo "1. 打开 https://chrome.google.com/webstore/devconsole ，进入本扩展"
+            echo "2. 「软件包」→「上传新软件包」，选择 \`${CHROME_STORE}\`"
             echo "3. 更新 listing 后提交审核"
             echo
             echo "### 校验和"
@@ -222,7 +240,7 @@ jobs:
             fi
           } > RELEASE_NOTES.md
 
-          gh release create "$TAG" "$UNPACKED" "$STORE" SHA256SUMS.txt \
+          gh release create "$TAG" "$UNPACKED" "$EDGE_STORE" "$CHROME_STORE" SHA256SUMS.txt \
             --title "${NAME} ${TAG}" \
             --target "$(git rev-parse HEAD)" \
             --notes-file RELEASE_NOTES.md
@@ -235,7 +253,7 @@ jobs:
           EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
           EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
           EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
-          STORE: ${{ steps.meta.outputs.store }}
+          EDGE_STORE: ${{ steps.meta.outputs.edge-store }}
         run: |
           set -euo pipefail
           API="https://api.addons.microsoftedge.microsoft.com"
@@ -250,7 +268,7 @@ jobs:
             exit 0
           fi
 
-          echo "上传 $STORE 到 product $EDGE_PRODUCT_ID"
+          echo "上传 $EDGE_STORE 到 product $EDGE_PRODUCT_ID"
           hdr=$(mktemp)
           body=$(mktemp)
           code=$(curl -sS -o "$body" -D "$hdr" -w "%{http_code}" \
@@ -258,7 +276,7 @@ jobs:
             -H "Authorization: ApiKey $EDGE_API_KEY" \
             -H "X-ClientID: $EDGE_CLIENT_ID" \
             -H "Content-Type: application/zip" \
-            --data-binary @"$STORE" \
+            --data-binary @"$EDGE_STORE" \
             "$API/v1/products/$EDGE_PRODUCT_ID/submissions/draft/package") || code=000
 
           if [ "$code" != "202" ]; then

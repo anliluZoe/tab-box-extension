@@ -25,12 +25,13 @@
 
 推荐从 Release 下载 zip 后解压安装：https://github.com/anliluZoe/tab-box-extension/releases
 
-Release 里有两个 zip，别拿错：
+Release 里有三个 zip，别拿错：
 
 | 文件 | 用途 |
 | --- | --- |
 | `tab-box-v*.zip` | 给用户手动安装：解压得到 `tab-box` 文件夹 |
 | `tab-box-v*-edge-store.zip` | 给商店：`manifest.json` 在根目录，上传 Edge 加载项商店用 |
+| `tab-box-v*-chrome-store.zip` | 给商店：`manifest.json` 在根目录，上传 Chrome Web Store 用 |
 
 解压后会得到 `tab-box` 文件夹，加载扩展时选择这个文件夹即可。
 
@@ -48,6 +49,30 @@ Release 里有两个 zip，别拿错：
 2. 打开右上角 **开发者模式**
 3. 点击 **加载已解压的扩展程序**
 4. 选择解压出的 `tab-box` 文件夹
+
+发布到 Chrome Web Store 时，在 [开发者后台](https://chrome.google.com/webstore/devconsole) 的「软件包」页面上传 `tab-box-v*-chrome-store.zip`，更新 listing 后提交审核。
+
+## 打包
+
+需要 PowerShell 7+；Windows 自带的 Windows PowerShell 5.1 也可运行（把命令里的 `pwsh` 换成 `powershell -ExecutionPolicy Bypass`）。
+
+```powershell
+# 只打 Chrome Web Store 包
+pwsh -File scripts/build-chrome-package.ps1
+
+# 只打 Edge 加载项商店包
+pwsh -File scripts/build-edge-package.ps1
+
+# 一次打两个
+pwsh -File scripts/build-store-package.ps1 -Browser Both
+```
+
+输出在 `dist/`：
+
+- `tab-box-<version>-chrome-store.zip`
+- `tab-box-<version>-edge-store.zip`
+
+两个商店包结构相同，`manifest.json` 都在 zip 根目录，可直接上传对应商店。GitHub Actions 在发布时也会自动生成这两个包。
 
 ## 说明
 
