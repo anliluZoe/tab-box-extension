@@ -13,7 +13,7 @@
 
 ## 安装
 
-推荐从 Release 下载 zip 后解压安装：https://github.com/anliluZoe/brower-extension/releases
+推荐从 Release 下载 zip 后解压安装：https://github.com/anliluZoe/tab-box-extension/releases
 
 Release 里有两个 zip，别拿错：
 
