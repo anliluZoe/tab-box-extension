@@ -5,6 +5,23 @@ on:
     types: [closed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      upload_edge:
+        description: '自动上传到 Edge 加载项商店草稿区'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+      publish_edge:
+        description: '上传后自动提交审核（会先执行 upload_edge）'
+        required: true
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
 
 permissions:
   contents: write
@@ -145,3 +162,150 @@ jobs:
             --title "${NAME} ${TAG}" \
             --notes-file RELEASE_NOTES.md
           echo "Release: https://github.com/${REPO}/releases/tag/${TAG}"
+
+      - name: Upload to Microsoft Edge Add-ons
+        id: edge_upload
+        if: github.event.inputs.upload_edge == 'true' || github.event.inputs.publish_edge == 'true'
+        env:
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          STORE: ${{ steps.meta.outputs.store }}
+        run: |
+          set -euo pipefail
+          API="https://api.addons.microsoftedge.microsoft.com"
+
+          missing=""
+          [ -n "$EDGE_PRODUCT_ID" ] || missing="$missing EDGE_PRODUCT_ID"
+          [ -n "$EDGE_CLIENT_ID" ] || missing="$missing EDGE_CLIENT_ID"
+          [ -n "$EDGE_API_KEY" ] || missing="$missing EDGE_API_KEY"
+          if [ -n "$missing" ]; then
+            echo "::warning::缺少 Edge API 凭据:$missing，已跳过自动上传。"
+            echo "::warning::在仓库 Settings → Secrets and variables → Actions 里补齐后重跑即可。"
+            exit 0
+          fi
+
+          echo "上传 $STORE 到 product $EDGE_PRODUCT_ID"
+          hdr=$(mktemp)
+          body=$(mktemp)
+          code=$(curl -sS -o "$body" -D "$hdr" -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: ApiKey $EDGE_API_KEY" \
+            -H "X-ClientID: $EDGE_CLIENT_ID" \
+            -H "Content-Type: application/zip" \
+            --data-binary @"$STORE" \
+            "$API/v1/products/$EDGE_PRODUCT_ID/submissions/draft/package") || code=000
+
+          if [ "$code" != "202" ]; then
+            echo "::error::上传失败，HTTP $code"
+            cat "$body"
+            echo
+            exit 1
+          fi
+
+          op=$(grep -i '^location:' "$hdr" | tr -d '\r' | tail -1 | awk '{print $2}' | awk -F'/' '{print $NF}' || true)
+          rm -f "$hdr" "$body"
+          if [ -z "$op" ]; then
+            echo "::error::响应里没有 Location，拿不到 operation ID"
+            exit 1
+          fi
+          echo "operation-id=$op" >> "$GITHUB_OUTPUT"
+          echo "上传已受理，operation ID: $op"
+
+          for i in $(seq 1 40); do
+            sleep 10
+            res=$(curl -sS \
+              -H "Authorization: ApiKey $EDGE_API_KEY" \
+              -H "X-ClientID: $EDGE_CLIENT_ID" \
+              "$API/v1/products/$EDGE_PRODUCT_ID/submissions/draft/package/operations/$op")
+            status=$(printf '%s' "$res" | jq -r '.status // empty' 2>/dev/null || true)
+            echo "[$i] 包校验状态: $status"
+            case "$status" in
+              Succeeded)
+                echo "包校验通过"
+                exit 0
+                ;;
+              Failed)
+                echo "::error::包校验失败"
+                echo "$res"
+                exit 1
+                ;;
+            esac
+          done
+          echo "::error::等待包校验超时（约 6 分钟），请到 Partner Center 查看"
+          exit 1
+
+      - name: Publish Edge submission
+        if: github.event.inputs.publish_edge == 'true'
+        env:
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          API="https://api.addons.microsoftedge.microsoft.com"
+          notes="Automated submission from GitHub Actions for ${TAG}."
+
+          if [ -z "$EDGE_PRODUCT_ID" ] || [ -z "$EDGE_CLIENT_ID" ] || [ -z "$EDGE_API_KEY" ]; then
+            echo "::warning::缺少 Edge API 凭据，跳过提交审核（包已上传到草稿区的话，可到 Partner Center 手动提交）。"
+            exit 0
+          fi
+
+          hdr=$(mktemp)
+          body=$(mktemp)
+          code=$(curl -sS -o "$body" -D "$hdr" -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: ApiKey $EDGE_API_KEY" \
+            -H "X-ClientID: $EDGE_CLIENT_ID" \
+            -H "Content-Type: application/json" \
+            -d "{\"notes\": \"$notes\"}" \
+            "$API/v1/products/$EDGE_PRODUCT_ID/submissions") || code=000
+
+          if [ "$code" != "202" ]; then
+            echo "JSON body 未被接受（HTTP $code），改用纯文本重试"
+            code=$(curl -sS -o "$body" -D "$hdr" -w "%{http_code}" \
+              -X POST \
+              -H "Authorization: ApiKey $EDGE_API_KEY" \
+              -H "X-ClientID: $EDGE_CLIENT_ID" \
+              -H "Content-Type: text/plain" \
+              --data-binary "$notes" \
+              "$API/v1/products/$EDGE_PRODUCT_ID/submissions") || code=000
+          fi
+
+          if [ "$code" != "202" ]; then
+            echo "::error::提交审核失败，HTTP $code"
+            cat "$body"
+            echo
+            exit 1
+          fi
+
+          op=$(grep -i '^location:' "$hdr" | tr -d '\r' | tail -1 | awk '{print $2}' | awk -F'/' '{print $NF}' || true)
+          rm -f "$hdr" "$body"
+          if [ -z "$op" ]; then
+            echo "::warning::响应里没有 Location，请到 Partner Center 确认提交状态"
+            exit 0
+          fi
+          echo "提交已受理，operation ID: $op"
+
+          for i in $(seq 1 30); do
+            sleep 10
+            res=$(curl -sS \
+              -H "Authorization: ApiKey $EDGE_API_KEY" \
+              -H "X-ClientID: $EDGE_CLIENT_ID" \
+              "$API/v1/products/$EDGE_PRODUCT_ID/submissions/operations/$op")
+            status=$(printf '%s' "$res" | jq -r '.status // empty' 2>/dev/null || true)
+            echo "[$i] 提交状态: $status"
+            case "$status" in
+              Succeeded)
+                echo "已提交审核"
+                exit 0
+                ;;
+              Failed)
+                echo "::error::提交审核失败"
+                echo "$res"
+                exit 1
+                ;;
+            esac
+          done
+          echo "::warning::提交状态尚未结束，请到 Partner Center 确认"
