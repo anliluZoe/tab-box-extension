@@ -28,7 +28,14 @@ jobs:
         run: |
           set -euo pipefail
           VERSION=$(node -p "require('./manifest.json').version")
-          NAME=$(node -p "require('./manifest.json').name")
+          # manifest 里是 __MSG_extName__ 占位，浏览器内的真实英文名在默认语言包里
+          NAME=$(node -p "require('./_locales/en/messages.json').extName.message" 2>/dev/null || echo "Tab Box")
+          case "$NAME" in
+            __MSG_*)
+              echo "::error::无法解析英文扩展名，请检查 _locales/en/messages.json 的 extName"
+              exit 1
+              ;;
+          esac
           SHORT_SHA="${GITHUB_SHA::7}"
           TAG="v${VERSION}"
 
@@ -56,11 +63,12 @@ jobs:
           mkdir -p tab-box
           cp manifest.json background.js popup.html popup.css popup.js README.md LICENSE tab-box/
           cp -R icons tab-box/icons
+          cp -R _locales tab-box/_locales
           zip -r -X "$UNPACKED" tab-box -x "*.DS_Store"
 
           # 2) Edge 商店用：manifest.json 必须在 zip 根目录，不能有顶层文件夹
           #    文件清单与 scripts/build-edge-package.ps1 保持一致
-          zip -r -X "$STORE" manifest.json background.js popup.html popup.css popup.js LICENSE icons -x "*.DS_Store"
+          zip -r -X "$STORE" manifest.json background.js popup.html popup.css popup.js LICENSE icons _locales -x "*.DS_Store"
 
           # 自检 1：根目录必须有 manifest.json
           if ! unzip -Z1 "$STORE" | grep -qx 'manifest.json'; then

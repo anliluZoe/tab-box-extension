@@ -8,6 +8,11 @@ const AUTO_DEBOUNCE_MS = 800;
 const GROUP_COLORS = ['blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'];
 const HTTP_RE = /^https?:/;
 
+// 界面文案走 chrome.i18n：语言跟随浏览器 UI，缺省回落英文
+function msg(key) {
+  return chrome.i18n.getMessage(key) || key;
+}
+
 let writeQueue = Promise.resolve();
 let prefs = { autoGroup: true, autoDedupe: true };
 let cleanupDay = '';
@@ -273,22 +278,22 @@ async function setupContextMenus() {
     const contexts = ['all', 'action'];
     await chrome.contextMenus.create({
       id: 'tab-manager',
-      title: '标签盒',
+      title: msg('menuRoot'),
       contexts,
     });
 
     const items = [
-      { id: 'open-manager', title: '打开标签盒' },
-      { id: 'group-by-domain', title: '按域名分组' },
-      { id: 'close-duplicates', title: '关闭重复（保留最新）' },
-      { id: 'close-idle-1', title: '关闭近1天未访问' },
-      { id: 'close-idle-2', title: '关闭近2天未访问' },
-      { id: 'close-idle-3', title: '关闭近3天未访问' },
+      { id: 'open-manager', title: msg('menuOpen') },
+      { id: 'group-by-domain', title: msg('menuGroup') },
+      { id: 'close-duplicates', title: msg('menuCloseDuplicates') },
+      { id: 'close-idle-1', title: msg('menuCloseIdle1') },
+      { id: 'close-idle-2', title: msg('menuCloseIdle2') },
+      { id: 'close-idle-3', title: msg('menuCloseIdle3') },
       { id: 'sep-1', type: 'separator' },
-      { id: 'close-same-domain-others', title: '关闭同域名其他标签页' },
-      { id: 'close-same-domain-all', title: '关闭同域名全部标签页' },
+      { id: 'close-same-domain-others', title: msg('menuCloseSameSiteOthers') },
+      { id: 'close-same-domain-all', title: msg('menuCloseSameSiteAll') },
       { id: 'sep-2', type: 'separator' },
-      { id: 'check-update', title: '检查更新' },
+      { id: 'check-update', title: msg('menuCheckUpdate') },
     ];
 
     for (const item of items) {

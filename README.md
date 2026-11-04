@@ -11,6 +11,15 @@
 5. **右键快捷入口**：在网页上右键可看到「标签盒」子菜单，直接分组、关重复、关同域名标签页等。
 6. **检查更新**：弹窗里可一键对比 GitHub 最新 Release；有新版本会打开下载页。
 
+## 多语言
+
+界面文案、扩展名称与描述支持**中文**和**英文**，默认英文（`_locales/en` 为 `default_locale`）。
+
+- 语言由浏览器的界面语言决定，无需手动切换：中文浏览器显示「标签盒」，其他语言一律显示「Tab Box」。
+- 文案在 `_locales/<locale>/messages.json`，`manifest.json` 里用 `__MSG_extName__` 这类占位引用。
+- 中文只覆盖 `zh_CN`（简体）。`zh_TW` / `zh_HK` 目前会回落到英文；要支持繁中，加一个 `_locales/zh_TW` 目录即可。
+- 新增语言只需要复制一份 `messages.json` 翻译并放进对应目录，代码不用改。
+
 ## 安装
 
 推荐从 Release 下载 zip 后解压安装：https://github.com/anliluZoe/tab-box-extension/releases

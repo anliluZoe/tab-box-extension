@@ -1,0 +1,284 @@
+{
+  "extName": {
+    "message": "Tab Box"
+  },
+  "extDesc": {
+    "message": "Group tabs by domain, search open pages, and clean up tabs left idle for days. Works in Chrome and Microsoft Edge."
+  },
+  "brandSub": {
+    "message": "Tuck scattered tabs into one box."
+  },
+  "themeTitle": {
+    "message": "Theme"
+  },
+  "themeSystem": {
+    "message": "System"
+  },
+  "themeLight": {
+    "message": "Light"
+  },
+  "themeDark": {
+    "message": "Dark"
+  },
+  "checkUpdate": {
+    "message": "Check for updates"
+  },
+  "searchPlaceholder": {
+    "message": "Search title, URL or domain — ↑↓ to pick, Enter to open"
+  },
+  "groupToggleLabel": {
+    "message": "Group by domain"
+  },
+  "groupToggleTitle": {
+    "message": "When on, tabs from the same site merge into a tab group and new tabs join automatically. Turning it off ungroups everything."
+  },
+  "autoDedupe": {
+    "message": "Auto de-duplicate"
+  },
+  "sortTitle": {
+    "message": "Changes the order only — sorted by when each tab was last opened"
+  },
+  "sortRecent": {
+    "message": "Recently visited"
+  },
+  "sortStale": {
+    "message": "Least recently used"
+  },
+  "closeDuplicates": {
+    "message": "Close duplicate tabs"
+  },
+  "idleTitle": {
+    "message": "Pick an idle range first — the list then shows only those tabs"
+  },
+  "idleAll": {
+    "message": "Select idle days"
+  },
+  "idleOne": {
+    "message": "Idle 1 day"
+  },
+  "idleTwo": {
+    "message": "Idle 2 days"
+  },
+  "idleThree": {
+    "message": "Idle 3 days"
+  },
+  "closeIdle": {
+    "message": "Remove"
+  },
+  "versionText": {
+    "message": "Version v$VERSION$",
+    "placeholders": {
+      "version": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmRemoveMany": {
+    "message": "Remove $COUNT$",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmRemove": {
+    "message": "Remove"
+  },
+  "idleHintPick": {
+    "message": "Pick an idle range first — the list will preview the tabs to close"
+  },
+  "idleHintCount": {
+    "message": "Close $COUNT$ tabs idle for $DAYS$+ days",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      },
+      "days": {
+        "content": "$2"
+      }
+    }
+  },
+  "idleHintEmpty": {
+    "message": "No tabs idle for $DAYS$+ days",
+    "placeholders": {
+      "days": {
+        "content": "$1"
+      }
+    }
+  },
+  "unsupportedTabGroups": {
+    "message": "This browser has no tab groups API — please update Edge or Chrome"
+  },
+  "timeJustNow": {
+    "message": "just now"
+  },
+  "timeMinutes": {
+    "message": "$COUNT$ min ago",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "timeHours": {
+    "message": "$COUNT$ hr ago",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "timeDays": {
+    "message": "$COUNT$ d ago",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "untitled": {
+    "message": "(untitled)"
+  },
+  "groupOther": {
+    "message": "(other)"
+  },
+  "dupeBadge": {
+    "message": "×$COUNT$",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "dupeBadgeTitle": {
+    "message": "Another tab has the same URL"
+  },
+  "todayCount": {
+    "message": "$COUNT$ today",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "todayCountTitle": {
+    "message": "Times you switched to this tab today"
+  },
+  "closeTabTitle": {
+    "message": "Close this tab"
+  },
+  "summaryBase": {
+    "message": "$TOTAL$ tabs · $IDLE$ idle $DAYS$+ days · dupes: $DUPES$",
+    "placeholders": {
+      "total": {
+        "content": "$1"
+      },
+      "idle": {
+        "content": "$2"
+      },
+      "days": {
+        "content": "$3"
+      },
+      "dupes": {
+        "content": "$4"
+      }
+    }
+  },
+  "summaryShown": {
+    "message": "showing $COUNT$",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "emptyNoMatch": {
+    "message": "No matching tabs"
+  },
+  "emptyIdle": {
+    "message": "No tabs idle for $DAYS$+ days",
+    "placeholders": {
+      "days": {
+        "content": "$1"
+      }
+    }
+  },
+  "emptyGeneric": {
+    "message": "No tabs in this view"
+  },
+  "closeGroup": {
+    "message": "Close group"
+  },
+  "closeGroupTitle": {
+    "message": "Close unpinned tabs under $HOST$",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmDuplicates": {
+    "message": "Confirm closing duplicates"
+  },
+  "confirmNothingDuplicates": {
+    "message": "No duplicate tabs to close"
+  },
+  "updateChecking": {
+    "message": "Checking…"
+  },
+  "updateLatest": {
+    "message": "Already on the latest version, v$VERSION$",
+    "placeholders": {
+      "version": {
+        "content": "$1"
+      }
+    }
+  },
+  "updateFound": {
+    "message": "Version $LATEST$ is available (you have v$CURRENT$) — opening the download page…",
+    "placeholders": {
+      "latest": {
+        "content": "$1"
+      },
+      "current": {
+        "content": "$2"
+      }
+    }
+  },
+  "updateFailed": {
+    "message": "Update check failed. Try again later, or open the GitHub Releases page manually."
+  },
+  "updateNoRelease": {
+    "message": "No usable release found"
+  },
+  "menuRoot": {
+    "message": "Tab Box"
+  },
+  "menuOpen": {
+    "message": "Open Tab Box"
+  },
+  "menuGroup": {
+    "message": "Group by domain"
+  },
+  "menuCloseDuplicates": {
+    "message": "Close duplicates (keep newest)"
+  },
+  "menuCloseIdle1": {
+    "message": "Close tabs idle for 1+ day"
+  },
+  "menuCloseIdle2": {
+    "message": "Close tabs idle for 2+ days"
+  },
+  "menuCloseIdle3": {
+    "message": "Close tabs idle for 3+ days"
+  },
+  "menuCloseSameSiteOthers": {
+    "message": "Close other tabs of this site"
+  },
+  "menuCloseSameSiteAll": {
+    "message": "Close all tabs of this site"
+  },
+  "menuCheckUpdate": {
+    "message": "Check for updates"
+  }
+}

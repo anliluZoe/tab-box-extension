@@ -25,7 +25,7 @@ $manifestPath = Join-Path $root 'manifest.json'
 $manifest = [System.IO.File]::ReadAllText($manifestPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
 
 $files = @('manifest.json', 'background.js', 'popup.html', 'popup.css', 'popup.js', 'LICENSE')
-$dirs = @('icons')
+$dirs = @('icons', '_locales')
 
 $stage = Join-Path $env:TEMP ("tabbox-stage-" + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $stage | Out-Null

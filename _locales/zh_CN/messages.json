@@ -1,0 +1,284 @@
+{
+  "extName": {
+    "message": "标签盒"
+  },
+  "extDesc": {
+    "message": "按域名合并标签页、快速搜索已打开的网页、按闲置天数清理标签页。支持 Chrome 与 Microsoft Edge。"
+  },
+  "brandSub": {
+    "message": "把散落的标签页收进盒子"
+  },
+  "themeTitle": {
+    "message": "界面主题"
+  },
+  "themeSystem": {
+    "message": "跟随系统"
+  },
+  "themeLight": {
+    "message": "浅色"
+  },
+  "themeDark": {
+    "message": "深色"
+  },
+  "checkUpdate": {
+    "message": "检查更新"
+  },
+  "searchPlaceholder": {
+    "message": "搜索标题 / 网址 / 域名，↑↓ 选择，回车跳转"
+  },
+  "groupToggleLabel": {
+    "message": "按域名分组"
+  },
+  "groupToggleTitle": {
+    "message": "打开后按域名合并成标签组，新开的同域名标签也会自动并入。关闭后解散所有标签组。"
+  },
+  "autoDedupe": {
+    "message": "自动去重"
+  },
+  "sortTitle": {
+    "message": "只改变先后，按最后打开时间排"
+  },
+  "sortRecent": {
+    "message": "最新访问优先"
+  },
+  "sortStale": {
+    "message": "最久未用优先"
+  },
+  "closeDuplicates": {
+    "message": "关闭重复标签页"
+  },
+  "idleTitle": {
+    "message": "先选择天数，列表会只显示这些标签页"
+  },
+  "idleAll": {
+    "message": "选择未访问天数"
+  },
+  "idleOne": {
+    "message": "近1天未访问"
+  },
+  "idleTwo": {
+    "message": "近2天未访问"
+  },
+  "idleThree": {
+    "message": "近3天未访问"
+  },
+  "closeIdle": {
+    "message": "确认移除"
+  },
+  "versionText": {
+    "message": "当前版本 v$VERSION$",
+    "placeholders": {
+      "version": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmRemoveMany": {
+    "message": "确认移除 $COUNT$ 个",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmRemove": {
+    "message": "确认移除"
+  },
+  "idleHintPick": {
+    "message": "先选择未访问天数，列表会显示将要关闭的标签页"
+  },
+  "idleHintCount": {
+    "message": "关闭近 $DAYS$ 天未访问的 $COUNT$ 个标签页",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      },
+      "days": {
+        "content": "$2"
+      }
+    }
+  },
+  "idleHintEmpty": {
+    "message": "没有近 $DAYS$ 天未访问的标签页",
+    "placeholders": {
+      "days": {
+        "content": "$1"
+      }
+    }
+  },
+  "unsupportedTabGroups": {
+    "message": "当前浏览器不支持标签组 API，请升级 Edge / Chrome"
+  },
+  "timeJustNow": {
+    "message": "刚刚"
+  },
+  "timeMinutes": {
+    "message": "$COUNT$ 分钟前",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "timeHours": {
+    "message": "$COUNT$ 小时前",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "timeDays": {
+    "message": "$COUNT$ 天前",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "untitled": {
+    "message": "（无标题）"
+  },
+  "groupOther": {
+    "message": "（其他）"
+  },
+  "dupeBadge": {
+    "message": "重复 $COUNT$",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "dupeBadgeTitle": {
+    "message": "还有相同网址的标签页"
+  },
+  "todayCount": {
+    "message": "今日 $COUNT$",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "todayCountTitle": {
+    "message": "今天切换到该页面的次数"
+  },
+  "closeTabTitle": {
+    "message": "关闭该标签页"
+  },
+  "summaryBase": {
+    "message": "共 $TOTAL$ 个 · 近 $DAYS$ 天闲置 $IDLE$ 个 · 重复 $DUPES$ 个",
+    "placeholders": {
+      "total": {
+        "content": "$1"
+      },
+      "idle": {
+        "content": "$2"
+      },
+      "days": {
+        "content": "$3"
+      },
+      "dupes": {
+        "content": "$4"
+      }
+    }
+  },
+  "summaryShown": {
+    "message": "显示 $COUNT$ 个",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "emptyNoMatch": {
+    "message": "没有匹配的标签页"
+  },
+  "emptyIdle": {
+    "message": "没有近 $DAYS$ 天未访问的标签页",
+    "placeholders": {
+      "days": {
+        "content": "$1"
+      }
+    }
+  },
+  "emptyGeneric": {
+    "message": "没有符合条件的标签页"
+  },
+  "closeGroup": {
+    "message": "关闭本组"
+  },
+  "closeGroupTitle": {
+    "message": "关闭 $HOST$ 下未固定的标签页",
+    "placeholders": {
+      "host": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmDuplicates": {
+    "message": "确认关闭重复标签页"
+  },
+  "confirmNothingDuplicates": {
+    "message": "没有可关闭重复的标签页"
+  },
+  "updateChecking": {
+    "message": "检查中…"
+  },
+  "updateLatest": {
+    "message": "已是最新版本 v$VERSION$",
+    "placeholders": {
+      "version": {
+        "content": "$1"
+      }
+    }
+  },
+  "updateFound": {
+    "message": "发现新版本 $LATEST$（当前 v$CURRENT$），正在打开下载页…",
+    "placeholders": {
+      "latest": {
+        "content": "$1"
+      },
+      "current": {
+        "content": "$2"
+      }
+    }
+  },
+  "updateFailed": {
+    "message": "检查更新失败，请稍后重试或手动打开 GitHub Release 页"
+  },
+  "updateNoRelease": {
+    "message": "未找到可用的 Release"
+  },
+  "menuRoot": {
+    "message": "标签盒"
+  },
+  "menuOpen": {
+    "message": "打开标签盒"
+  },
+  "menuGroup": {
+    "message": "按域名分组"
+  },
+  "menuCloseDuplicates": {
+    "message": "关闭重复（保留最新）"
+  },
+  "menuCloseIdle1": {
+    "message": "关闭近1天未访问"
+  },
+  "menuCloseIdle2": {
+    "message": "关闭近2天未访问"
+  },
+  "menuCloseIdle3": {
+    "message": "关闭近3天未访问"
+  },
+  "menuCloseSameSiteOthers": {
+    "message": "关闭同域名其他标签页"
+  },
+  "menuCloseSameSiteAll": {
+    "message": "关闭同域名全部标签页"
+  },
+  "menuCheckUpdate": {
+    "message": "检查更新"
+  }
+}

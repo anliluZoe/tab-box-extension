@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>标签盒</title>
+  <title>Tab Box</title>
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
@@ -11,56 +11,58 @@
       <div class="brand">
         <img class="brand-icon" src="icons/icon48.png" alt="" width="28" height="28" />
         <div class="brand-text">
-          <div class="brand-name">标签盒</div>
-          <div class="brand-sub">把散落的标签页收进盒子</div>
+          <div class="brand-name" data-i18n="extName">Tab Box</div>
+          <div class="brand-sub" data-i18n="brandSub">Tuck scattered tabs into one box.</div>
         </div>
       </div>
       <div class="meta-bar">
         <div class="meta-actions">
-          <select id="theme" title="界面主题">
-            <option value="system">跟随系统</option>
-            <option value="light">浅色</option>
-            <option value="dark">深色</option>
+          <select id="theme" data-i18n-title="themeTitle" title="Theme">
+            <option value="system" data-i18n="themeSystem">System</option>
+            <option value="light" data-i18n="themeLight">Light</option>
+            <option value="dark" data-i18n="themeDark">Dark</option>
           </select>
-          <button type="button" id="check-update">检查更新</button>
+          <button type="button" id="check-update" data-i18n="checkUpdate">Check for updates</button>
         </div>
         <span id="version-text"></span>
       </div>
     </div>
-    <input id="search" type="search" placeholder="搜索标题 / 网址 / 域名，↑↓ 选择，回车跳转" autofocus autocomplete="off" />
+    <input id="search" type="search" data-i18n-placeholder="searchPlaceholder"
+      placeholder="Search title, URL or domain — ↑↓ to pick, Enter to open" autofocus autocomplete="off" />
   </header>
 
   <div class="toolbar">
-    <label class="group-switch" title="打开后按域名合并成标签组，新开的同域名标签也会自动并入。关闭后解散所有标签组。">
+    <label class="group-switch" data-i18n-title="groupToggleTitle"
+      title="When on, tabs from the same site merge into a tab group and new tabs join automatically. Turning it off ungroups everything.">
       <input type="checkbox" id="group-toggle" checked />
       <span class="group-switch-ui">
-        <span class="group-switch-text">按域名分组</span>
+        <span class="group-switch-text" data-i18n="groupToggleLabel">Group by domain</span>
         <span class="group-switch-track" aria-hidden="true"><span class="group-switch-knob"></span></span>
       </span>
     </label>
-    <label class="filter"><input type="checkbox" id="auto-dedupe" checked />自动去重</label>
+    <label class="filter"><input type="checkbox" id="auto-dedupe" checked /><span data-i18n="autoDedupe">Auto de-duplicate</span></label>
   </div>
 
   <div class="status-row">
     <div id="summary"></div>
-    <select id="sort" title="只改变先后，按最后打开时间排">
-      <option value="recent" selected>最新访问优先</option>
-      <option value="stale">最久未用优先</option>
+    <select id="sort" data-i18n-title="sortTitle" title="Changes the order only — sorted by when each tab was last opened">
+      <option value="recent" selected data-i18n="sortRecent">Recently visited</option>
+      <option value="stale" data-i18n="sortStale">Least recently used</option>
     </select>
   </div>
 
   <ul id="tab-list"></ul>
 
   <footer>
-    <button id="close-duplicates" hidden>关闭重复标签页</button>
+    <button id="close-duplicates" hidden data-i18n="closeDuplicates">Close duplicate tabs</button>
     <div class="close-idle-bar">
-      <select id="idle-days" title="先选择天数，列表会只显示这些标签页">
-        <option value="all" selected>选择未访问天数</option>
-        <option value="1">近1天未访问</option>
-        <option value="2">近2天未访问</option>
-        <option value="3">近3天未访问</option>
+      <select id="idle-days" data-i18n-title="idleTitle" title="Pick an idle range first — the list then shows only those tabs">
+        <option value="all" selected data-i18n="idleAll">Select idle days</option>
+        <option value="1" data-i18n="idleOne">Idle 1 day</option>
+        <option value="2" data-i18n="idleTwo">Idle 2 days</option>
+        <option value="3" data-i18n="idleThree">Idle 3 days</option>
       </select>
-      <button id="close-idle" class="danger" type="button" disabled>确认移除</button>
+      <button id="close-idle" class="danger" type="button" disabled data-i18n="closeIdle">Remove</button>
     </div>
   </footer>
 

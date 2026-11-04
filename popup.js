@@ -11,9 +11,36 @@ const versionText = document.getElementById('version-text');
 const checkUpdateBtn = document.getElementById('check-update');
 const themeSelect = document.getElementById('theme');
 
+// 文案统一走 chrome.i18n：语言由浏览器 UI 语言决定，缺 en 时回落英文（默认语言）
+const t = (key, subs) => {
+  const value =
+    subs == null
+      ? chrome.i18n.getMessage(key)
+      : chrome.i18n.getMessage(key, (Array.isArray(subs) ? subs : [subs]).map(String));
+  // 缺 key 时回显 key，方便发现漏翻译，而不是静默显示空字符串
+  return value || key;
+};
+
+function localizeDocument() {
+  document.documentElement.lang = chrome.i18n.getUILanguage();
+  document.title = t('extName');
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    el.textContent = t(el.dataset.i18n);
+  }
+  for (const el of document.querySelectorAll('[data-i18n-title]')) {
+    el.title = t(el.dataset.i18nTitle);
+  }
+  for (const el of document.querySelectorAll('[data-i18n-placeholder]')) {
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  }
+}
+
+// 必须在下面构建自定义下拉之前执行，否则选项会保留 HTML 里的英文占位文案
+localizeDocument();
+
 const UPDATE_REPOS = ['anliluZoe/tab-box-extension', 'anliluZoe/brower-extension'];
 const manifestVersion = chrome.runtime.getManifest().version;
-versionText.textContent = `当前版本 v${manifestVersion}`;
+versionText.textContent = t('versionText', manifestVersion);
 
 const supportsTabGroups = Boolean(
   chrome.tabGroups && chrome.tabs.group && chrome.tabs.ungroup
@@ -33,7 +60,7 @@ let autoGroupOn = true;
 
 if (!supportsTabGroups) {
   groupToggle.disabled = true;
-  groupToggle.closest('.group-switch').title = '当前浏览器不支持标签组 API，请升级 Edge / Chrome';
+  groupToggle.closest('.group-switch').title = t('unsupportedTabGroups');
 }
 
 function resolveTheme(mode) {
@@ -58,12 +85,12 @@ function updateCloseIdleLabel() {
   const days = selectedIdleDays();
   const count = pending ? allTabs.filter((t) => isIdleCloseTarget(t, days)).length : 0;
   closeIdleBtn.disabled = !pending || count === 0;
-  closeIdleBtn.textContent = count ? `确认移除 ${count} 个` : '确认移除';
+  closeIdleBtn.textContent = count ? t('confirmRemoveMany', count) : t('confirmRemove');
   closeIdleBtn.title = !pending
-    ? '先选择未访问天数，列表会显示将要关闭的标签页'
+    ? t('idleHintPick')
     : count
-      ? `关闭近${days}天未访问的 ${count} 个标签页`
-      : `没有近${days}天未访问的标签页`;
+      ? t('idleHintCount', [count, days])
+      : t('idleHintEmpty', days);
 }
 
 function recentDayKeys(days) {
@@ -114,6 +141,13 @@ function hostOf(url) {
   }
 }
 
+// 无域名标签页用一个稳定的内部键，只在展示时才翻译，避免影响分组比较
+const OTHER_HOST = '(other)';
+
+function hostLabel(host) {
+  return host === OTHER_HOST ? t('groupOther') : host;
+}
+
 function appendHighlighted(el, text, keyword) {
   if (!keyword) {
     el.textContent = text;
@@ -139,10 +173,10 @@ function appendHighlighted(el, text, keyword) {
 }
 
 function formatAgo(ago) {
-  if (ago < 60000) return '刚刚';
-  if (ago < 3600000) return `${Math.floor(ago / 60000)} 分钟前`;
-  if (ago < 86400000) return `${Math.floor(ago / 3600000)} 小时前`;
-  return `${Math.floor(ago / 86400000)} 天前`;
+  if (ago < 60000) return t('timeJustNow');
+  if (ago < 3600000) return t('timeMinutes', Math.floor(ago / 60000));
+  if (ago < 86400000) return t('timeHours', Math.floor(ago / 3600000));
+  return t('timeDays', Math.floor(ago / 86400000));
 }
 
 function scheduleRender(immediate) {
@@ -255,7 +289,7 @@ function buildViewModel() {
       continue;
     }
 
-    const title = tab.title || tab.url || '(无标题)';
+    const title = tab.title || tab.url || t('untitled');
     if (keyword) {
       const hay = `${title}\n${tab.url || ''}\n${host}\n${url}`.toLowerCase();
       if (!hay.includes(keyword)) continue;
@@ -279,7 +313,7 @@ function buildViewModel() {
   const groups = [];
   const index = new Map();
   for (const item of items) {
-    const key = item.host || '(其他)';
+    const key = item.host || OTHER_HOST;
     let g = index.get(key);
     if (g == null) {
       g = groups.length;
@@ -355,22 +389,22 @@ function renderTabRow(item, keyword, now) {
   if (dupes > 1) {
     const dupe = document.createElement('span');
     dupe.className = 'dupe-badge';
-    dupe.textContent = `重复 ${dupes}`;
-    dupe.title = '还有相同网址的标签页';
+    dupe.textContent = t('dupeBadge', dupes);
+    dupe.title = t('dupeBadgeTitle');
     li.appendChild(dupe);
   }
 
   const badge = document.createElement('span');
   badge.className = 'count-badge' + (count === 0 ? ' zero' : '');
-  badge.textContent = `今日 ${count}`;
-  badge.title = '今天切换到该页面的次数';
+  badge.textContent = t('todayCount', count);
+  badge.title = t('todayCountTitle');
   li.appendChild(badge);
 
   const closeBtn = document.createElement('button');
   closeBtn.className = 'close-btn';
   closeBtn.type = 'button';
   closeBtn.textContent = '×';
-  closeBtn.title = '关闭该标签页';
+  closeBtn.title = t('closeTabTitle');
   li.appendChild(closeBtn);
 
   return li;
@@ -381,9 +415,9 @@ function render() {
   const view = buildViewModel();
   cachedItems = view.items;
 
-  summaryEl.textContent = `共 ${allTabs.length} 个 · 近${view.days}天闲置 ${view.idleTotal} 个 · 重复 ${view.dupeTotal} 个${
-    view.keyword || idleDays.value !== 'all' || closePreview ? ` · 显示 ${view.items.length} 个` : ''
-  }`;
+  const filtered = view.keyword || idleDays.value !== 'all' || closePreview;
+  const base = t('summaryBase', [allTabs.length, view.idleTotal, view.days, view.dupeTotal]);
+  summaryEl.textContent = filtered ? `${base} · ${t('summaryShown', view.items.length)}` : base;
 
   const frag = document.createDocumentFragment();
 
@@ -391,10 +425,10 @@ function render() {
     const tip = document.createElement('li');
     tip.className = 'empty-tip';
     tip.textContent = view.keyword
-      ? '没有匹配的标签页'
+      ? t('emptyNoMatch')
       : idleDays.value !== 'all'
-        ? `没有近${view.days}天未访问的标签页`
-        : '没有符合条件的标签页';
+        ? t('emptyIdle', view.days)
+        : t('emptyGeneric');
     frag.appendChild(tip);
     tabList.replaceChildren(frag);
     return;
@@ -412,7 +446,7 @@ function render() {
 
     const name = document.createElement('span');
     name.className = 'domain-name';
-    appendHighlighted(name, group.host, view.keyword);
+    appendHighlighted(name, hostLabel(group.host), view.keyword);
 
     const count = document.createElement('span');
     count.className = 'domain-count';
@@ -421,8 +455,8 @@ function render() {
     const closeGroupBtn = document.createElement('button');
     closeGroupBtn.className = 'close-group-btn';
     closeGroupBtn.type = 'button';
-    closeGroupBtn.textContent = '关闭本组';
-    closeGroupBtn.title = `关闭 ${group.host} 下未固定的标签页`;
+    closeGroupBtn.textContent = t('closeGroup');
+    closeGroupBtn.title = t('closeGroupTitle', hostLabel(group.host));
 
     header.append(name, count, closeGroupBtn);
 
@@ -456,20 +490,20 @@ function duplicateTargets() {
   return toClose;
 }
 
-async function confirmAction(btn, count, label, run) {
+async function confirmAction(btn, count, run) {
   if (count === 0) {
     const hadPreview = Boolean(closePreview || confirmTarget);
     clearClosePreview();
     if (hadPreview) render();
-    summaryEl.textContent = `没有可${label}的标签页`;
+    summaryEl.textContent = t('confirmNothingDuplicates');
     return;
   }
   if (confirmTarget !== btn) {
     if (confirmTarget) confirmTarget.textContent = confirmTarget.dataset.label;
     confirmTarget = btn;
-    closePreview = btn === closeDuplicatesBtn ? 'duplicates' : 'idle';
+    closePreview = 'duplicates';
     btn.dataset.label = btn.dataset.label || btn.textContent;
-    btn.textContent = btn === closeDuplicatesBtn ? '确认关闭重复标签页' : `确认${label}`;
+    btn.textContent = t('confirmDuplicates');
     selectedIndex = 0;
     scheduleRender(true);
     return;
@@ -499,7 +533,7 @@ tabList.addEventListener('click', async (e) => {
     const wrap = closeGroupBtn.closest('.domain-group');
     const host = wrap?.dataset.host;
     const ids = cachedItems
-      .filter((i) => (i.host || '(其他)') === host && !i.tab.pinned)
+      .filter((i) => (i.host || OTHER_HOST) === host && !i.tab.pinned)
       .map((i) => i.tab.id);
     if (ids.length) {
       await chrome.tabs.remove(ids);
@@ -619,7 +653,7 @@ groupToggle.addEventListener('change', async () => {
 
 closeDuplicatesBtn.addEventListener('click', () => {
   const ids = duplicateTargets();
-  confirmAction(closeDuplicatesBtn, ids.length, '关闭重复', () => chrome.tabs.remove(ids));
+  confirmAction(closeDuplicatesBtn, ids.length, () => chrome.tabs.remove(ids));
 });
 
 closeIdleBtn.addEventListener('click', async () => {
@@ -671,12 +705,12 @@ async function fetchLatestRelease() {
       lastError = err;
     }
   }
-  throw lastError || new Error('未找到可用的 Release');
+  throw lastError || new Error(t('updateNoRelease'));
 }
 
 checkUpdateBtn.addEventListener('click', async () => {
   checkUpdateBtn.classList.add('busy');
-  checkUpdateBtn.textContent = '检查中…';
+  checkUpdateBtn.textContent = t('updateChecking');
   try {
     const release = await fetchLatestRelease();
     const latest = release.tag_name;
@@ -686,17 +720,17 @@ checkUpdateBtn.addEventListener('click', async () => {
     ) || (release.assets || []).find((a) => /\.zip$/i.test(a.name));
 
     if (compareVersion(latest, manifestVersion) > 0) {
-      summaryEl.textContent = `发现新版本 ${latest}（当前 v${manifestVersion}），正在打开下载页…`;
+      summaryEl.textContent = t('updateFound', [latest, manifestVersion]);
       await chrome.tabs.create({ url: zip?.browser_download_url || pageUrl });
     } else {
-      summaryEl.textContent = `已是最新版本 v${manifestVersion}`;
+      summaryEl.textContent = t('updateLatest', manifestVersion);
     }
   } catch (err) {
     console.warn('检查更新失败:', err);
-    summaryEl.textContent = '检查更新失败，请稍后重试或手动打开 GitHub Release 页';
+    summaryEl.textContent = t('updateFailed');
   } finally {
     checkUpdateBtn.classList.remove('busy');
-    checkUpdateBtn.textContent = '检查更新';
+    checkUpdateBtn.textContent = t('checkUpdate');
   }
 });
 
