@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy - 标签盒 (Tab Box)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    max-width: 760px; margin: 0 auto; padding: 40px 20px 80px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    line-height: 1.7; color: #1f2328; background: #fff;
+  }
+  h1 { font-size: 1.7rem; margin-bottom: .2rem; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; border-bottom: 1px solid #e5e7eb; padding-bottom: .3rem; }
+  .meta { color: #6b7280; font-size: .9rem; margin-top: 0; }
+  code { background: #f3f4f6; padding: .1em .35em; border-radius: 4px; font-size: .9em; }
+  ul { padding-left: 1.3rem; }
+  li { margin: .3rem 0; }
+  .divider { margin: 3.5rem 0 2rem; border: 0; border-top: 2px solid #e5e7eb; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e6edf3; background: #0d1117; }
+    h2 { border-color: #30363d; }
+    code { background: #21262d; }
+    .divider { border-color: #30363d; }
+    .meta { color: #8b949e; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Privacy Policy — 标签盒 (Tab Box)</h1>
+<p class="meta">Browser extension for Microsoft Edge and Google Chrome &middot; Last updated: November 4, 2026</p>
+
+<h2>1. Summary</h2>
+<p>
+  标签盒 (Tab Box) is a tab-management extension. <strong>It does not collect, transmit,
+  sell or share any personal data.</strong> All data the extension works with stays inside
+  your browser on your own device. There is no account, no analytics, no advertising, and
+  no tracking of any kind.
+</p>
+
+<h2>2. What the extension stores, and where</h2>
+<p>
+  The extension uses the browser's local extension storage (<code>chrome.storage.local</code>).
+  This storage is private to the extension on your device. It is never uploaded, never
+  synchronized to a cloud account, and is not readable by websites.
+</p>
+<ul>
+  <li><strong>Your settings</strong> — two on/off switches (automatic grouping, automatic
+      de-duplication). Kept until you change them or uninstall the extension.</li>
+  <li><strong>Tab activity records</strong> — for pages you visit, the page address, how many
+      times you opened it today, and when you last used it. These records exist only so the
+      "close tabs unused for 1/2/3 days" feature can work. They are automatically deleted
+      after <strong>7 days</strong>.</li>
+</ul>
+<p>
+  The extension does <strong>not</strong> store page content, form data, passwords, cookies,
+  bookmarks, download history, or any file from your device.
+</p>
+
+<h2>3. What the extension reads</h2>
+<p>
+  To list, group and clean up tabs, the extension reads the metadata of your open tabs:
+  title, address (URL), favicon, pinned state, tab-group membership and last-access time.
+  This information is processed in memory and, for the activity records described above,
+  stored locally. It is never sent anywhere else. The extension does not inject scripts
+  into web pages and does not read the content of the pages you visit.
+</p>
+
+<h2>4. Network requests</h2>
+<p>
+  The extension makes exactly one kind of network request, and only when you explicitly
+  click <em>"Check for updates"</em>: it asks the public GitHub API
+  (<code>https://api.github.com</code>) for the latest release of the extension's own
+  repository, in order to compare version numbers. This request contains no personal data —
+  no identifiers, no browsing history, no tab information. It is never made on install, at
+  browser startup, or while you browse.
+</p>
+<p>
+  If a newer version is found, your browser opens the public GitHub release page so you can
+  download it manually. The extension itself never downloads or installs anything.
+</p>
+
+<h2>5. Sharing and disclosure</h2>
+<p>
+  We do not sell, rent, trade or share data with anyone. There are no third-party SDKs, no
+  remote servers operated by the developer, and no data brokers involved. Because the
+  developer never receives your data, there is nothing to disclose to third parties.
+</p>
+
+<h2>6. Permissions and why they are needed</h2>
+<ul>
+  <li><strong>tabs</strong> — read the list of open tabs so they can be shown in the popup,
+      grouped by website, and closed when duplicate or long-unused.</li>
+  <li><strong>tabGroups</strong> — create, name, colour and update tab groups; merge tabs from
+      the same website into one group.</li>
+  <li><strong>storage</strong> — keep your two settings and the 7-day activity records on your
+      device (required because the extension's background worker restarts).</li>
+  <li><strong>contextMenus</strong> — add the "标签盒" right-click submenu as a shortcut to the
+      same actions available in the popup.</li>
+  <li><strong>Host permission <code>https://api.github.com/*</code></strong> — allow the
+      optional update check described in section 4.</li>
+</ul>
+
+<h2>7. Children</h2>
+<p>
+  The extension is a general-purpose utility. It is not directed at children, and it does
+  not knowingly collect information from anyone, including children under 13.
+</p>
+
+<h2>8. Your control and deletion</h2>
+<p>
+  You can remove the stored activity records at any time from the extension's popup, or open
+  <code>edge://extensions</code> / <code>chrome://extensions</code> and clear the extension's
+  data. Uninstalling the extension deletes all data it stored. Since no data is held by the
+  developer, there is no separate deletion request to make.
+</p>
+
+<h2>9. Changes to this policy</h2>
+<p>
+  If a future version of the extension changes how data is handled, this page will be updated
+  before that version is published, and the "Last updated" date above will change. Material
+  changes will also be noted in the extension's release notes.
+</p>
+
+<h2>10. Contact</h2>
+<p>
+  Questions about this policy or about privacy in the extension can be raised at
+  <a href="https://github.com/anliluZoe/brower-extension/issues">github.com/anliluZoe/brower-extension/issues</a>.
+</p>
+
+<hr class="divider">
+
+<h1 lang="zh-CN">隐私政策 — 标签盒</h1>
+<p class="meta" lang="zh-CN">适用于 Microsoft Edge 与 Google Chrome 的浏览器扩展 &middot; 最后更新：2026 年 11 月 4 日</p>
+
+<div lang="zh-CN">
+<h2>一、概述</h2>
+<p>
+  标签盒是一款管理标签页的浏览器扩展。<strong>它不收集、不上传、不售卖、不共享任何个人数据。</strong>
+  扩展处理的所有数据都只保存在你本机浏览器的扩展存储中。没有账号体系，没有统计分析，没有广告，
+  没有任何形式的追踪。
+</p>
+
+<h2>二、保存了什么，保存在哪里</h2>
+<p>
+  扩展只使用浏览器提供的本地扩展存储（<code>chrome.storage.local</code>）。该存储仅本扩展可读，
+  位于你自己的设备上，不会上传，不会同步到云账号，网站也无法读取。具体包括：
+</p>
+<ul>
+  <li><strong>你的设置</strong>：两个开关（自动分组、自动去重），直到你修改或卸载扩展为止。</li>
+  <li><strong>标签页活跃记录</strong>：访问过的页面地址、当天打开次数、最近使用时间。这些记录仅用于实现
+      「关闭近 1/2/3 天未访问的标签页」功能，<strong>超过 7 天自动删除</strong>。</li>
+</ul>
+<p>
+  扩展<strong>不</strong>保存网页内容、表单数据、密码、Cookie、书签、下载记录或设备上的任何文件。
+</p>
+
+<h2>三、读取了什么</h2>
+<p>
+  为了列出、分组和清理标签页，扩展会读取已打开标签页的元数据：标题、网址、图标、是否固定、
+  所属标签组、最后访问时间。这些信息只用于本地处理（活跃记录按上节说明在本地保存），不会发送到任何地方。
+  扩展不会向网页注入脚本，也不会读取网页内容。
+</p>
+
+<h2>四、网络请求</h2>
+<p>
+  扩展只有一种网络请求，且仅在你主动点击「检查更新」时发起：向公开的 GitHub API
+  （<code>https://api.github.com</code>）查询本扩展自己仓库的最新 Release，用于比较版本号。
+  该请求不包含任何个人数据——没有标识符、没有浏览记录、没有标签页信息。安装时、浏览器启动时、
+  浏览网页时都不会发起请求。若发现新版本，浏览器会打开公开的 GitHub Release 页面由你手动下载，
+  扩展本身不下载、不安装任何东西。
+</p>
+
+<h2>五、共享与披露</h2>
+<p>
+  本扩展不向任何人出售、出租、交易或共享数据。没有第三方 SDK，没有开发者自建服务器，不涉及
+  任何数据中间商。由于开发者根本收不到你的数据，也就不存在向第三方披露的可能。
+</p>
+
+<h2>六、权限用途</h2>
+<ul>
+  <li><strong>tabs</strong>：读取已打开标签页列表，用于弹窗展示、按域名分组、关闭重复或长期未用的标签页。</li>
+  <li><strong>tabGroups</strong>：创建、命名、上色和更新标签组，把同域名标签页并入同一组。</li>
+  <li><strong>storage</strong>：在本机保存两个设置项和 7 天活跃记录（扩展后台会被浏览器重启，必须持久化）。</li>
+  <li><strong>contextMenus</strong>：添加「标签盒」右键子菜单，作为弹窗中已有功能的快捷入口。</li>
+  <li><strong>主机权限 <code>https://api.github.com/*</code></strong>：用于第四节所述的检查更新功能。</li>
+</ul>
+
+<h2>七、儿童</h2>
+<p>
+  本扩展是通用工具，不面向儿童，也不会有意收集任何人的信息，包括 13 岁以下儿童的信息。
+</p>
+
+<h2>八、你的控制与删除</h2>
+<p>
+  你可以随时在扩展弹窗中清除活跃记录，或在 <code>edge://extensions</code>（Chrome 为
+  <code>chrome://extensions</code>）中清除该扩展的数据。卸载扩展会删除其保存的全部数据。
+  由于开发者不持有任何数据，无需另行提出删除请求。
+</p>
+
+<h2>九、政策变更</h2>
+<p>
+  若未来版本改变数据处理方式，本页面会在该版本发布前更新，并同步修改上方的「最后更新」日期；
+  重要变更也会写进扩展的更新日志。
+</p>
+
+<h2>十、联系方式</h2>
+<p>
+  关于本政策或扩展隐私问题，可在
+  <a href="https://github.com/anliluZoe/brower-extension/issues">github.com/anliluZoe/brower-extension/issues</a>
+  提出。
+</p>
+</div>
+
+</body>
+</html>

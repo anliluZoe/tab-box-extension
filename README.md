@@ -15,9 +15,14 @@
 
 推荐从 Release 下载 zip 后解压安装：https://github.com/anliluZoe/brower-extension/releases
 
-解压后会得到 `tab-box` 文件夹，加载扩展时选择这个文件夹即可。
+Release 里有两个 zip，别拿错：
 
-每次有 PR 合并进 `main` 时，GitHub Actions 会自动打包并发布 Release（含 zip）。也可在仓库 **Actions → Release on PR merge → Run workflow** 手动触发。
+| 文件 | 用途 |
+| --- | --- |
+| `tab-box-v*.zip` | 给用户手动安装：解压得到 `tab-box` 文件夹 |
+| `tab-box-v*-edge-store.zip` | 给商店：`manifest.json` 在根目录，上传 Edge 加载项商店用 |
+
+解压后会得到 `tab-box` 文件夹，加载扩展时选择这个文件夹即可。
 
 ### Microsoft Edge
 
@@ -33,6 +38,20 @@
 2. 打开右上角 **开发者模式**
 3. 点击 **加载已解压的扩展程序**
 4. 选择解压出的 `tab-box` 文件夹
+
+## 发布
+
+每次有 PR 合并进 `main` 时，GitHub Actions 会自动打包并发布 Release（两个 zip 一起），也可在仓库 **Actions → Release on PR merge → Run workflow** 手动触发。
+
+发新版只需把 `manifest.json` 的 `version` 改大（商店不接受重复版本号），合并到 `main` 后等 Action 跑完即可。
+
+本地也可以先打包验证：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-edge-package.ps1
+```
+
+产物在 `dist/tab-box-<版本>-edge.zip`，脚本会自检 `manifest.json` 是否在 zip 根目录、内容是否与源文件一致。
 
 ## 说明
 

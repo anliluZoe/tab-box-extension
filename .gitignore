@@ -1,0 +1,10 @@
+# 本地打包产物（GitHub Actions 会重新生成，不入库）
+dist/
+*.zip
+
+# 本地验证工具的临时残留（权限受限，无法删除，直接忽略）
+.pytmp/
+
+# 系统文件
+.DS_Store
+Thumbs.db
