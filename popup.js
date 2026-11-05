@@ -10,14 +10,19 @@ const closeIdleBtn = document.getElementById('close-idle');
 const versionText = document.getElementById('version-text');
 const themeSelect = document.getElementById('theme');
 
-// 文案统一走 chrome.i18n：语言由浏览器 UI 语言决定，缺 en 时回落英文（默认语言）
+// 文案统一走 chrome.i18n：语言由浏览器 UI 语言决定，缺 en 时回落英文（默认语言）。
+// 每行标签要取 4~5 条文案，缓存后避免重复调用。
+const i18nCache = new Map();
 const t = (key, subs) => {
-  const value =
-    subs == null
-      ? chrome.i18n.getMessage(key)
-      : chrome.i18n.getMessage(key, (Array.isArray(subs) ? subs : [subs]).map(String));
+  const list = subs == null ? null : (Array.isArray(subs) ? subs : [subs]).map(String);
+  const cacheKey = list ? `${key}\u0000${list.join('\u0001')}` : key;
+  const cached = i18nCache.get(cacheKey);
+  if (cached != null) return cached;
+  const value = list ? chrome.i18n.getMessage(key, list) : chrome.i18n.getMessage(key);
   // 缺 key 时回显 key，方便发现漏翻译，而不是静默显示空字符串
-  return value || key;
+  const text = value || key;
+  i18nCache.set(cacheKey, text);
+  return text;
 };
 
 function localizeDocument() {
@@ -49,12 +54,16 @@ let statsByDay = {};
 let lastActive = {};
 let collapsedHosts = new Set();
 let selectedIndex = 0;
+let selectedEl = null;
 let confirmTarget = null;
 let closePreview = null;
 let renderTimer = 0;
 let cachedItems = [];
 let themeMode = 'system';
 let autoGroupOn = true;
+let idleIds = new Set();
+let idleCacheDays = 0;
+const failedFavicons = new Set();
 
 if (!supportsTabGroups) {
   groupToggle.disabled = true;
@@ -81,7 +90,7 @@ function selectedIdleDays() {
 function updateCloseIdleLabel() {
   const pending = idleDays.value !== 'all';
   const days = selectedIdleDays();
-  const count = pending ? allTabs.filter((t) => isIdleCloseTarget(t, days)).length : 0;
+  const count = pending ? ensureIdleIds().size : 0;
   closeIdleBtn.disabled = !pending || count === 0;
   closeIdleBtn.textContent = count ? t('confirmRemoveMany', count) : t('confirmRemove');
   closeIdleBtn.title = !pending
@@ -91,33 +100,57 @@ function updateCloseIdleLabel() {
       : t('idleHintEmpty', days);
 }
 
+// 与 toLocaleDateString('sv') 等价，避免每次判断都走 Intl
+function dayKey(ts = Date.now()) {
+  const d = new Date(ts);
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${d.getFullYear()}-${month < 10 ? `0${month}` : month}-${day < 10 ? `0${day}` : day}`;
+}
+
 function recentDayKeys(days) {
   const keys = [];
   const now = Date.now();
   for (let i = 0; i < days; i += 1) {
-    keys.push(new Date(now - i * 86400000).toLocaleDateString('sv'));
+    keys.push(dayKey(now - i * 86400000));
   }
   return keys;
 }
 
-function tabLastSeen(tab, url) {
-  return lastActive[url] || tab.lastAccessed || 0;
-}
-
-function isIdleTab(tab, days) {
-  const url = tabUrlKey(tab.url);
-  const last = tabLastSeen(tab, url);
+// 闲置判断一次算完：打开弹窗、切换天数、关闭标签后各算一次，
+// 渲染和底部按钮都复用这个 Set，避免每个标签重复算日期。
+function computeIdleIds(days) {
   const cutoff = Date.now() - days * 86400000;
-  if (last && last >= cutoff) return false;
-  for (const day of recentDayKeys(days)) {
-    if (statsByDay[day]?.[url]) return false;
+  const dayKeys = recentDayKeys(days);
+  const ids = new Set();
+
+  for (const tab of allTabs) {
+    if (tab.pinned || tab.active || !/^https?:/.test(tab.url || '')) continue;
+    const url = tabUrlKey(tab.url);
+    const last = lastActive[url] || tab.lastAccessed || 0;
+    // 没有可靠活跃记录时不判定为闲置，避免误关
+    if (!last || last >= cutoff) continue;
+    let seen = false;
+    for (const day of dayKeys) {
+      if (statsByDay[day]?.[url]) {
+        seen = true;
+        break;
+      }
+    }
+    if (!seen) ids.add(tab.id);
   }
-  // 没有可靠活跃记录时不判定为闲置，避免误关
-  return Boolean(last) && last < cutoff;
+  return ids;
 }
 
-function isIdleCloseTarget(tab, days) {
-  return !tab.pinned && !tab.active && /^https?:/.test(tab.url || '') && isIdleTab(tab, days);
+function refreshIdleIds() {
+  idleCacheDays = selectedIdleDays();
+  idleIds = computeIdleIds(idleCacheDays);
+  return idleIds;
+}
+
+function ensureIdleIds() {
+  if (selectedIdleDays() !== idleCacheDays) refreshIdleIds();
+  return idleIds;
 }
 
 function clearClosePreview() {
@@ -199,10 +232,16 @@ function visibleTabItems() {
 
 function applySelection() {
   const items = visibleTabItems();
-  if (!items.length) return;
+  if (!items.length) {
+    selectedEl = null;
+    return;
+  }
   selectedIndex = Math.max(0, Math.min(selectedIndex, items.length - 1));
-  items.forEach((el, i) => el.classList.toggle('selected', i === selectedIndex));
-  items[selectedIndex].scrollIntoView({ block: 'nearest' });
+  const next = items[selectedIndex];
+  if (selectedEl && selectedEl !== next) selectedEl.classList.remove('selected');
+  next.classList.add('selected');
+  selectedEl = next;
+  next.scrollIntoView({ block: 'nearest' });
 }
 
 async function reload() {
@@ -240,6 +279,7 @@ async function reload() {
     syncPicker(themeSelect);
   }
   if (supportsTabGroups) groupToggle.checked = autoGroupOn;
+  refreshIdleIds();
   updateCloseIdleLabel();
   scheduleRender(true);
 }
@@ -260,16 +300,15 @@ function buildViewModel() {
   const keyword = closePreview ? '' : searchInput.value.trim().toLowerCase();
   const days = selectedIdleDays();
   const limitToIdle = closePreview === 'idle' || (!closePreview && idleDays.value !== 'all');
-  const today = new Date().toLocaleDateString('sv');
+  const today = dayKey();
   const todayStats = statsByDay[today] || {};
+  const idleSet = ensureIdleIds();
   const urlCounts = new Map();
-  let idleTotal = 0;
   let dupeTotal = 0;
 
   for (const tab of allTabs) {
     const url = tabUrlKey(tab.url);
     urlCounts.set(url, (urlCounts.get(url) || 0) + 1);
-    if (isIdleCloseTarget(tab, days)) idleTotal += 1;
   }
   for (const [url, count] of urlCounts) {
     if (count > 1 && /^https?:/.test(url)) dupeTotal += count - 1;
@@ -283,7 +322,7 @@ function buildViewModel() {
     const count = todayStats[url] || 0;
     if (dupeCloseIds) {
       if (!dupeCloseIds.has(tab.id)) continue;
-    } else if (limitToIdle && !isIdleCloseTarget(tab, days)) {
+    } else if (limitToIdle && !idleSet.has(tab.id)) {
       continue;
     }
 
@@ -299,7 +338,7 @@ function buildViewModel() {
       url,
       title,
       count,
-      last: tabLastSeen(tab, url),
+      last: lastActive[url] || tab.lastAccessed || 0,
       dupes: urlCounts.get(url) || 1,
     });
   }
@@ -328,7 +367,14 @@ function buildViewModel() {
   if (sortByStale) groups.sort((a, b) => a.minLast - b.minLast);
   else groups.sort((a, b) => b.maxLast - a.maxLast);
 
-  return { keyword, items, groups, idleTotal, dupeTotal, days };
+  return { keyword, items, groups, idleTotal: idleSet.size, dupeTotal, days };
+}
+
+function makeFaviconFallback(host) {
+  const fb = document.createElement('div');
+  fb.className = 'favicon-fallback';
+  fb.textContent = (host[0] || '?').toUpperCase();
+  return fb;
 }
 
 function renderTabRow(item, keyword, now) {
@@ -339,27 +385,25 @@ function renderTabRow(item, keyword, now) {
   li.dataset.windowId = String(tab.windowId);
   li.title = tab.url || '';
 
-  if (tab.favIconUrl && /^https?:/.test(tab.favIconUrl)) {
+  const favicon = tab.favIconUrl;
+  // 同一张坏图标只尝试一次，避免每次重绘都重新发请求
+  if (favicon && /^https?:/.test(favicon) && !failedFavicons.has(favicon)) {
     const img = document.createElement('img');
     img.className = 'favicon';
-    img.src = tab.favIconUrl;
+    img.src = favicon;
     img.loading = 'lazy';
+    img.decoding = 'async';
     img.addEventListener(
       'error',
       () => {
-        const fb = document.createElement('div');
-        fb.className = 'favicon-fallback';
-        fb.textContent = (host[0] || '?').toUpperCase();
-        img.replaceWith(fb);
+        failedFavicons.add(favicon);
+        img.replaceWith(makeFaviconFallback(host));
       },
       { once: true }
     );
     li.appendChild(img);
   } else {
-    const fb = document.createElement('div');
-    fb.className = 'favicon-fallback';
-    fb.textContent = (host[0] || '?').toUpperCase();
-    li.appendChild(fb);
+    li.appendChild(makeFaviconFallback(host));
   }
 
   const info = document.createElement('div');
@@ -412,6 +456,7 @@ function render() {
   const now = Date.now();
   const view = buildViewModel();
   cachedItems = view.items;
+  selectedEl = null; // 列表即将整体替换，旧节点不能继续引用
 
   const filtered = view.keyword || idleDays.value !== 'all' || closePreview;
   const base = t('summaryBase', [allTabs.length, view.idleTotal, view.days, view.dupeTotal]);
@@ -656,8 +701,7 @@ closeDuplicatesBtn.addEventListener('click', () => {
 
 closeIdleBtn.addEventListener('click', async () => {
   if (idleDays.value === 'all' || closeIdleBtn.disabled) return;
-  const days = selectedIdleDays();
-  const ids = allTabs.filter((t) => isIdleCloseTarget(t, days)).map((t) => t.id);
+  const ids = Array.from(ensureIdleIds());
   if (!ids.length) return;
   clearClosePreview();
   await chrome.tabs.remove(ids);

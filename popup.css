@@ -559,7 +559,10 @@ mark {
   background: var(--tray);
   border: 1.5px solid var(--line);
   box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(6px);
+  /* 每个分组再叠一层 backdrop-filter 会生成大量合成层，滚动开销随分组数增长；
+     这里改用 content-visibility，让视口外的分组跳过布局和绘制。 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
 }
 
 .domain-header {

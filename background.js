@@ -1,10 +1,15 @@
 // 后台：访问统计、右键菜单、自动分组/去重。
-// 性能要点：内存缓存偏好、跳过无变化写入与已分组域名。
+// 性能要点：
+// 1. 统计只读一次 storage，访问先攒在内存里再批量写盘；
+// 2. 自动整理合并成一个定时器、共用一次标签页快照；
+// 3. 右键菜单只在安装/浏览器启动时注册，不在每次 Service Worker 唤醒时重建。
 
 const KEEP_DAYS = 7;
 const COUNT_DEBOUNCE_MS = 3000;
 const LAST_ACTIVE_WRITE_MS = 30000;
 const AUTO_DEBOUNCE_MS = 800;
+const FLUSH_DELAY_MS = 2000;
+const DAY_MS = 86400000;
 const GROUP_COLORS = ['blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'];
 const HTTP_RE = /^https?:/;
 
@@ -13,14 +18,16 @@ function msg(key) {
   return chrome.i18n.getMessage(key) || key;
 }
 
-let writeQueue = Promise.resolve();
 let prefs = { autoGroup: true, autoDedupe: true };
-let cleanupDay = '';
 
+// 访问统计：内存态 + 待写批次。state 为 null 表示还没从 storage 读过。
+let state = null;
+let flushTimer = 0;
+let flushing = false;
+let retryDelay = FLUSH_DELAY_MS;
+const pendingVisits = new Map(); // `${day}|${url}` -> { day, url, add, last }
 const lastCountedAt = new Map();
 const lastActiveWrittenAt = new Map();
-const autoTimers = new Map();
-const tabOpenedAt = new Map();
 
 function tabUrlKey(url) {
   return (url || '').split('#')[0];
@@ -34,8 +41,12 @@ function hostOf(url) {
   }
 }
 
-function todayKey() {
-  return new Date().toLocaleDateString('sv');
+// 与 toLocaleDateString('sv') 等价，但不用走 Intl，热路径上快很多
+function dayKey(ts = Date.now()) {
+  const d = new Date(ts);
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${d.getFullYear()}-${month < 10 ? `0${month}` : month}-${day < 10 ? `0${day}` : day}`;
 }
 
 async function loadPrefs() {
@@ -60,6 +71,17 @@ chrome.storage.onChanged.addListener((changes, area) => {
   };
 });
 
+async function getState() {
+  if (state) return state;
+  const stored = await chrome.storage.local.get(['stats', 'lastActive', 'cleanupDay']);
+  state = {
+    stats: stored.stats || {},
+    lastActive: stored.lastActive || {},
+    cleanupDay: stored.cleanupDay || '',
+  };
+  return state;
+}
+
 function recordVisit(tab) {
   if (!tab || !tab.url || !HTTP_RE.test(tab.url)) return;
   const url = tabUrlKey(tab.url);
@@ -70,40 +92,90 @@ function recordVisit(tab) {
   // 仅刷新活跃时间时节流，避免来回切标签频繁写盘
   if (!shouldCount && now - (lastActiveWrittenAt.get(url) || 0) < LAST_ACTIVE_WRITE_MS) return;
 
-  writeQueue = writeQueue
-    .then(async () => {
-      const stored = await chrome.storage.local.get(['stats', 'lastActive']);
-      const stats = stored.stats || {};
-      const lastActive = stored.lastActive || {};
-      const today = todayKey();
+  const day = dayKey(now);
+  const key = `${day}|${url}`;
+  const entry = pendingVisits.get(key);
+  if (entry) {
+    if (shouldCount) entry.add += 1;
+    if (now > entry.last) entry.last = now;
+  } else {
+    pendingVisits.set(key, { day, url, add: shouldCount ? 1 : 0, last: now });
+  }
+  lastActiveWrittenAt.set(url, now);
 
-      if (!stats[today]) stats[today] = {};
-      if (shouldCount) stats[today][url] = (stats[today][url] || 0) + 1;
-      lastActive[url] = now;
-      lastActiveWrittenAt.set(url, now);
-
-      // 一天最多清理一次过期数据
-      if (cleanupDay !== today) {
-        cleanupDay = today;
-        const cutoff = new Date(now - KEEP_DAYS * 86400000).toLocaleDateString('sv');
-        for (const day of Object.keys(stats)) {
-          if (day < cutoff) delete stats[day];
-        }
-        for (const [u, t] of Object.entries(lastActive)) {
-          if (now - t > KEEP_DAYS * 86400000) delete lastActive[u];
-        }
-      }
-
-      await chrome.storage.local.set({ stats, lastActive });
-    })
-    .catch(() => {});
+  if (!flushTimer) flushTimer = setTimeout(flushVisits, FLUSH_DELAY_MS);
 }
 
-async function clearBadge() {
+// 一天最多清理一次过期数据；cleanupDay 持久化，Service Worker 重启后不重复扫
+function cleanupIfNeeded(stored, today) {
+  if (stored.cleanupDay === today) return;
+  stored.cleanupDay = today;
+  const cutoffDay = dayKey(Date.now() - KEEP_DAYS * DAY_MS);
+  const cutoffTs = Date.now() - KEEP_DAYS * DAY_MS;
+
+  for (const day of Object.keys(stored.stats)) {
+    if (day < cutoffDay) delete stored.stats[day];
+  }
+  for (const [url, t] of Object.entries(stored.lastActive)) {
+    if (t < cutoffTs) delete stored.lastActive[url];
+  }
+  for (const [url, t] of lastCountedAt) {
+    if (t < cutoffTs) lastCountedAt.delete(url);
+  }
+  for (const [url, t] of lastActiveWrittenAt) {
+    if (t < cutoffTs) lastActiveWrittenAt.delete(url);
+  }
+}
+
+async function flushVisits() {
+  flushTimer = 0;
+  if (flushing || !pendingVisits.size) return;
+  flushing = true;
+
+  const batch = Array.from(pendingVisits.values());
+  pendingVisits.clear();
+  let failed = false;
+
   try {
-    await chrome.action.setBadgeText({ text: '' });
+    const stored = await getState();
+    const today = dayKey();
+
+    for (const entry of batch) {
+      if (entry.add) {
+        const day = stored.stats[entry.day] || (stored.stats[entry.day] = {});
+        day[entry.url] = (day[entry.url] || 0) + entry.add;
+      }
+      if (entry.last > (stored.lastActive[entry.url] || 0)) {
+        stored.lastActive[entry.url] = entry.last;
+      }
+    }
+
+    cleanupIfNeeded(stored, today);
+    await chrome.storage.local.set({
+      stats: stored.stats,
+      lastActive: stored.lastActive,
+      cleanupDay: stored.cleanupDay,
+    });
   } catch {
-    // ignore
+    // 写失败时把这批并回队列，按退避间隔重试，避免把 Service Worker 一直唤醒
+    failed = true;
+    retryDelay = Math.min(60000, retryDelay * 2);
+    for (const entry of batch) {
+      const key = `${entry.day}|${entry.url}`;
+      const prev = pendingVisits.get(key);
+      if (prev) {
+        prev.add += entry.add;
+        if (entry.last > prev.last) prev.last = entry.last;
+      } else {
+        pendingVisits.set(key, entry);
+      }
+    }
+  } finally {
+    flushing = false;
+    if (!failed) retryDelay = FLUSH_DELAY_MS;
+    if (pendingVisits.size && !flushTimer) {
+      flushTimer = setTimeout(flushVisits, failed ? retryDelay : FLUSH_DELAY_MS);
+    }
   }
 }
 
@@ -149,81 +221,142 @@ async function applyGroup(windowId, host, tabs, existingGroups) {
   }
 }
 
-async function groupByDomain(filterWindowId, filterHost) {
-  const query = filterWindowId != null ? { windowId: filterWindowId } : {};
-  const tabs = await chrome.tabs.query(query);
+// 按 windowId|host 聚合标签页；keys 非空时只处理指定分组
+function collectHostBuckets(tabs, allowedKeys) {
   const pending = new Map();
-
   for (const tab of tabs) {
     if (tab.pinned || !tab.url || !HTTP_RE.test(tab.url)) continue;
     const host = hostOf(tab.url);
-    if (!host || (filterHost && host !== filterHost)) continue;
+    if (!host) continue;
     const key = `${tab.windowId}|${host}`;
-    if (!pending.has(key)) pending.set(key, { windowId: tab.windowId, host, tabs: [] });
-    pending.get(key).tabs.push(tab);
-  }
+    if (allowedKeys && !allowedKeys.has(key)) continue;
 
-  const existingByWindow = new Map();
-  for (const { windowId } of pending.values()) {
-    if (existingByWindow.has(windowId)) continue;
-    existingByWindow.set(windowId, await chrome.tabGroups.query({ windowId }));
+    let bucket = pending.get(key);
+    if (!bucket) {
+      bucket = { windowId: tab.windowId, host, tabs: [] };
+      pending.set(key, bucket);
+    }
+    bucket.tabs.push(tab);
   }
+  return pending;
+}
 
-  for (const { windowId, host, tabs: hostTabs } of pending.values()) {
-    await applyGroup(windowId, host, hostTabs, existingByWindow.get(windowId));
+async function groupBuckets(buckets) {
+  if (!buckets.size) return;
+
+  const windows = new Set();
+  for (const bucket of buckets.values()) windows.add(bucket.windowId);
+
+  // 每个窗口只查一次分组列表，多个窗口并行
+  const groupsByWindow = new Map();
+  await Promise.all(
+    Array.from(windows, async (windowId) => {
+      try {
+        groupsByWindow.set(windowId, await chrome.tabGroups.query({ windowId }));
+      } catch {
+        groupsByWindow.set(windowId, []);
+      }
+    })
+  );
+
+  for (const bucket of buckets.values()) {
+    await applyGroup(
+      bucket.windowId,
+      bucket.host,
+      bucket.tabs,
+      groupsByWindow.get(bucket.windowId)
+    );
   }
 }
 
-async function closeDuplicateTabs(keepTabId, onlyUrlKey) {
+async function groupByDomain() {
   const tabs = await chrome.tabs.query({});
+  await groupBuckets(collectHostBuckets(tabs));
+}
+
+// 返回被关掉的 tab id，供调用方过滤后续快照
+async function closeDuplicatesFromTabs(tabs, preferredByUrl) {
   const byUrl = new Map();
 
   for (const tab of tabs) {
     if (tab.pinned || !HTTP_RE.test(tab.url || '')) continue;
     const key = tabUrlKey(tab.url);
-    if (onlyUrlKey && key !== onlyUrlKey) continue;
-    if (!byUrl.has(key)) byUrl.set(key, []);
-    byUrl.get(key).push(tab);
+    if (preferredByUrl && !preferredByUrl.has(key)) continue;
+    let list = byUrl.get(key);
+    if (!list) byUrl.set(key, (list = []));
+    list.push(tab);
   }
 
   const toClose = [];
-  for (const list of byUrl.values()) {
+  for (const [key, list] of byUrl) {
     if (list.length < 2) continue;
-    list.sort((a, b) => (tabOpenedAt.get(a.id) ?? a.id) - (tabOpenedAt.get(b.id) ?? b.id));
+    // tab.id 单调递增，越新越大：按 id 排序即可判断谁更早打开
+    list.sort((a, b) => a.id - b.id);
+    const preferred = preferredByUrl && preferredByUrl.get(key);
     const keepId =
-      keepTabId && list.some((t) => t.id === keepTabId)
-        ? keepTabId
+      preferred != null && list.some((t) => t.id === preferred)
+        ? preferred
         : list[list.length - 1].id;
     for (const tab of list) {
       if (tab.id !== keepId) toClose.push(tab.id);
     }
   }
-  if (toClose.length) await chrome.tabs.remove(toClose);
+
+  if (!toClose.length) return new Set();
+  try {
+    await chrome.tabs.remove(toClose);
+  } catch {
+    // 个别标签可能已被用户关掉，忽略后继续
+  }
+  return new Set(toClose);
 }
+
+async function closeDuplicateTabs(keepTabId, onlyUrlKey) {
+  const tabs = await chrome.tabs.query({});
+  const preferred = new Map();
+  if (onlyUrlKey) preferred.set(onlyUrlKey, keepTabId);
+  await closeDuplicatesFromTabs(tabs, preferred);
+}
+
+// 自动整理合并成一次防抖：一次 query 快照同时服务于去重和分组
+let houseTimer = 0;
+const dirtyHostKeys = new Set(); // `${windowId}|${host}`
+const dirtyUrlKeep = new Map(); // urlKey -> 刚打开的 tabId
 
 function scheduleAutoHousekeeping(tab) {
   if (!tab || tab.pinned || !HTTP_RE.test(tab.url || '')) return;
+  if (!prefs.autoGroup && !prefs.autoDedupe) return;
+
   const host = hostOf(tab.url);
   const urlKey = tabUrlKey(tab.url);
   if (!host || !urlKey) return;
 
-  const key = `${tab.windowId}|${host}|${urlKey}`;
-  const prev = autoTimers.get(key);
-  if (prev) clearTimeout(prev);
+  if (prefs.autoGroup) dirtyHostKeys.add(`${tab.windowId}|${host}`);
+  if (prefs.autoDedupe) dirtyUrlKeep.set(urlKey, tab.id);
 
-  autoTimers.set(
-    key,
-    setTimeout(async () => {
-      autoTimers.delete(key);
-      try {
-        // 先去重再分组，减少后续分组处理的标签数量
-        if (prefs.autoDedupe) await closeDuplicateTabs(tab.id, urlKey);
-        if (prefs.autoGroup) await groupByDomain(tab.windowId, host);
-      } catch (err) {
-        console.warn('自动整理失败:', host, err);
-      }
-    }, AUTO_DEBOUNCE_MS)
-  );
+  if (houseTimer) return;
+  houseTimer = setTimeout(runAutoHousekeeping, AUTO_DEBOUNCE_MS);
+}
+
+async function runAutoHousekeeping() {
+  houseTimer = 0;
+  const hostKeys = new Set(dirtyHostKeys);
+  const urlKeep = new Map(dirtyUrlKeep);
+  dirtyHostKeys.clear();
+  dirtyUrlKeep.clear();
+  if (!hostKeys.size && !urlKeep.size) return;
+
+  try {
+    const tabs = await chrome.tabs.query({});
+    let closed = new Set();
+    if (prefs.autoDedupe) closed = await closeDuplicatesFromTabs(tabs, urlKeep);
+    if (prefs.autoGroup) {
+      const remaining = closed.size ? tabs.filter((t) => !closed.has(t.id)) : tabs;
+      await groupBuckets(collectHostBuckets(remaining, hostKeys));
+    }
+  } catch (err) {
+    console.warn('自动整理失败:', err);
+  }
 }
 
 async function closeIdleTabs(days = 2) {
@@ -234,10 +367,10 @@ async function closeIdleTabs(days = 2) {
   ]);
   const stats = stored.stats || {};
   const lastActive = stored.lastActive || {};
-  const cutoff = Date.now() - safeDays * 86400000;
+  const cutoff = Date.now() - safeDays * DAY_MS;
   const recentDays = [];
   for (let i = 0; i < safeDays; i += 1) {
-    recentDays.push(new Date(Date.now() - i * 86400000).toLocaleDateString('sv'));
+    recentDays.push(dayKey(Date.now() - i * DAY_MS));
   }
 
   const ids = tabs
@@ -272,54 +405,49 @@ async function closeSameDomainTabs(tab, keepCurrent) {
   if (ids.length) await chrome.tabs.remove(ids);
 }
 
-async function setupContextMenus() {
-  try {
-    await chrome.contextMenus.removeAll();
-    const contexts = ['all', 'action'];
-    await chrome.contextMenus.create({
-      id: 'tab-manager',
-      title: msg('menuRoot'),
-      contexts,
-    });
+let menuJob = null;
 
-    const items = [
-      { id: 'open-manager', title: msg('menuOpen') },
-      { id: 'group-by-domain', title: msg('menuGroup') },
-      { id: 'close-duplicates', title: msg('menuCloseDuplicates') },
-      { id: 'close-idle-1', title: msg('menuCloseIdle1') },
-      { id: 'close-idle-2', title: msg('menuCloseIdle2') },
-      { id: 'close-idle-3', title: msg('menuCloseIdle3') },
-      { id: 'sep-1', type: 'separator' },
-      { id: 'close-same-domain-others', title: msg('menuCloseSameSiteOthers') },
-      { id: 'close-same-domain-all', title: msg('menuCloseSameSiteAll') },
-    ];
-
-    for (const item of items) {
+// 右键菜单是浏览器级持久化数据，只在安装/更新和浏览器启动时注册
+function setupContextMenus() {
+  if (menuJob) return menuJob;
+  menuJob = (async () => {
+    try {
+      await chrome.contextMenus.removeAll();
+      const contexts = ['all', 'action'];
       await chrome.contextMenus.create({
-        id: item.id,
-        parentId: 'tab-manager',
-        title: item.title || undefined,
-        type: item.type || 'normal',
+        id: 'tab-manager',
+        title: msg('menuRoot'),
         contexts,
       });
-    }
-  } catch (err) {
-    console.error('注册右键菜单失败:', err);
-  }
-}
 
-async function rememberOpenTabs() {
-  try {
-    const tabs = await chrome.tabs.query({});
-    const now = Date.now();
-    for (const tab of tabs) {
-      if (!tabOpenedAt.has(tab.id)) {
-        tabOpenedAt.set(tab.id, now - (tabs.length - tab.index) * 10);
+      const items = [
+        { id: 'open-manager', title: msg('menuOpen') },
+        { id: 'group-by-domain', title: msg('menuGroup') },
+        { id: 'close-duplicates', title: msg('menuCloseDuplicates') },
+        { id: 'close-idle-1', title: msg('menuCloseIdle1') },
+        { id: 'close-idle-2', title: msg('menuCloseIdle2') },
+        { id: 'close-idle-3', title: msg('menuCloseIdle3') },
+        { id: 'sep-1', type: 'separator' },
+        { id: 'close-same-domain-others', title: msg('menuCloseSameSiteOthers') },
+        { id: 'close-same-domain-all', title: msg('menuCloseSameSiteAll') },
+      ];
+
+      for (const item of items) {
+        await chrome.contextMenus.create({
+          id: item.id,
+          parentId: 'tab-manager',
+          title: item.title || undefined,
+          type: item.type || 'normal',
+          contexts,
+        });
       }
+    } catch (err) {
+      console.error('注册右键菜单失败:', err);
     }
-  } catch {
-    // ignore
-  }
+  })().finally(() => {
+    menuJob = null;
+  });
+  return menuJob;
 }
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -384,19 +512,13 @@ chrome.tabs.onActivated.addListener(async ({ tabId }) => {
 chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.active) recordVisit(tab);
   // 只在网址变化或加载完成时整理，忽略 title/favIcon 等噪声事件
-  if (tab.pinned) return;
   if (changeInfo.url || changeInfo.status === 'complete') {
     scheduleAutoHousekeeping(tab);
   }
 });
 
 chrome.tabs.onCreated.addListener((tab) => {
-  tabOpenedAt.set(tab.id, Date.now());
   scheduleAutoHousekeeping(tab);
-});
-
-chrome.tabs.onRemoved.addListener((tabId) => {
-  tabOpenedAt.delete(tabId);
 });
 
 chrome.windows.onFocusChanged.addListener(async (windowId) => {
@@ -410,19 +532,17 @@ chrome.windows.onFocusChanged.addListener(async (windowId) => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  loadPrefs();
-  rememberOpenTabs();
-  clearBadge();
   setupContextMenus();
 });
 chrome.runtime.onInstalled.addListener(() => {
-  loadPrefs();
-  rememberOpenTabs();
-  clearBadge();
   setupContextMenus();
 });
 
+// Service Worker 被挂起前尽量把待写批次落盘（不保证一定执行）
+if (chrome.runtime.onSuspend) {
+  chrome.runtime.onSuspend.addListener(() => {
+    flushVisits();
+  });
+}
+
 loadPrefs();
-rememberOpenTabs();
-clearBadge();
-setupContextMenus();
