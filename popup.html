@@ -6,17 +6,39 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <header class="top">
+  <header class="top" id="top">
     <div class="brand-row">
       <div class="brand">
-        <img class="brand-icon" src="icons/icon48.png" alt="" width="28" height="28" />
+        <img class="brand-icon" src="icons/icon48.png" alt="" width="32" height="32" />
         <div class="brand-text">
-          <div class="brand-name" data-i18n="extName">Tab Box</div>
-          <div class="brand-sub" data-i18n="brandSub">Tuck scattered tabs into one box.</div>
+          <div class="brand-name" id="brand-title">Tab Box</div>
+          <div class="brand-sub" id="brand-sub">Tuck scattered tabs into one box.</div>
         </div>
       </div>
       <div class="meta-bar">
         <div class="meta-actions">
+          <button id="module-toggle" class="icon-btn" type="button">
+            <span class="module-toggle-inner" aria-hidden="true">
+              <span class="module-face module-face-front">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M8 3 4 7l4 4" />
+                  <path d="M4 7h16" />
+                  <path d="m16 21 4-4-4-4" />
+                  <path d="M20 17H4" />
+                </svg>
+              </span>
+              <span class="module-face module-face-back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M8 3 4 7l4 4" />
+                  <path d="M4 7h16" />
+                  <path d="m16 21 4-4-4-4" />
+                  <path d="M20 17H4" />
+                </svg>
+              </span>
+            </span>
+          </button>
           <select id="theme" data-i18n-title="themeTitle" title="Theme">
             <option value="system" data-i18n="themeSystem">System</option>
             <option value="light" data-i18n="themeLight">Light</option>
@@ -26,44 +48,109 @@
         <span id="version-text"></span>
       </div>
     </div>
-    <input id="search" type="search" data-i18n-placeholder="searchPlaceholder"
-      placeholder="Search title, URL or domain — ↑↓ to pick, Enter to open" autofocus autocomplete="off" />
+    <input id="search" type="search" placeholder="" autofocus autocomplete="off" spellcheck="false" />
   </header>
 
-  <div class="toolbar">
-    <label class="group-switch" data-i18n-title="groupToggleTitle"
-      title="When on, tabs from the same site merge into a tab group and new tabs join automatically. Turning it off ungroups everything.">
-      <input type="checkbox" id="group-toggle" checked />
-      <span class="group-switch-ui">
-        <span class="group-switch-text" data-i18n="groupToggleLabel">Group by domain</span>
-        <span class="group-switch-track" aria-hidden="true"><span class="group-switch-knob"></span></span>
-      </span>
-    </label>
-    <label class="filter"><input type="checkbox" id="auto-dedupe" checked /><span data-i18n="autoDedupe">Auto de-duplicate</span></label>
-  </div>
+  <main id="home-view" class="home">
+    <div class="toolbar" id="tabs-toolbar">
+      <label class="group-switch" data-i18n-title="groupToggleTitle"
+        title="When on, tabs from the same site merge into a tab group and new tabs join automatically. Turning it off ungroups everything.">
+        <input type="checkbox" id="group-toggle" checked />
+        <span class="group-switch-ui">
+          <span class="group-switch-text" data-i18n="groupToggleLabel">Group by domain</span>
+          <span class="group-switch-track" aria-hidden="true"><span class="group-switch-knob"></span></span>
+        </span>
+      </label>
+      <label class="filter tab-auto-dedupe">
+        <input type="checkbox" id="auto-dedupe" checked />
+        <span data-i18n="autoDedupe">Auto de-duplicate</span>
+      </label>
+    </div>
 
-  <div class="status-row">
-    <div id="summary"></div>
-    <select id="sort" data-i18n-title="sortTitle" title="Changes the order only — sorted by when each tab was last opened">
-      <option value="recent" selected data-i18n="sortRecent">Recently visited</option>
-      <option value="stale" data-i18n="sortStale">Least recently used</option>
-    </select>
-  </div>
+    <div class="toolbar" id="bookmarks-toolbar" hidden>
+      <button id="folder-filter" class="tool-btn" type="button">
+        <span class="folder-icon small" aria-hidden="true"></span>
+        <span data-i18n="folderFilter">Folders</span>
+      </button>
+      <button id="bookmarks-dedup" class="tool-btn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="8" y="8" width="12" height="12" rx="2.5" />
+          <path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8" />
+        </svg>
+        <span data-i18n="dedupeAction">De-duplicate</span>
+      </button>
+    </div>
 
-  <ul id="tab-list"></ul>
+    <div class="status-row">
+      <div id="summary"></div>
+      <div class="status-actions">
+        <select id="sort" data-i18n-title="sortTitle" title="Changes the order only"></select>
+        <button id="select-mode" class="select-mode-btn" type="button" data-i18n="selectMode">Select</button>
+      </div>
+    </div>
 
-  <footer>
-    <button id="close-duplicates" hidden data-i18n="closeDuplicates">Close duplicate tabs</button>
-    <div class="close-idle-bar">
-      <select id="idle-days" data-i18n-title="idleTitle" title="Pick an idle range first — the list then shows only those tabs">
-        <option value="all" selected data-i18n="idleAll">Select idle days</option>
-        <option value="1" data-i18n="idleOne">Idle 1 day</option>
-        <option value="2" data-i18n="idleTwo">Idle 2 days</option>
-        <option value="3" data-i18n="idleThree">Idle 3 days</option>
-      </select>
-      <button id="close-idle" class="danger" type="button" disabled data-i18n="closeIdle">Remove</button>
+    <div id="bookmark-crumbs" class="crumbs" hidden>
+      <button id="crumb-back" class="crumb-up" type="button" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+      </button>
+      <div id="crumb-path" class="crumb-path"></div>
+    </div>
+
+    <ul id="item-list" tabindex="0"></ul>
+  </main>
+
+  <section id="page-view" class="page" hidden>
+    <div class="page-head">
+      <button id="page-back" class="icon-btn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+      </button>
+      <div class="page-head-text">
+        <div id="page-title" class="page-title"></div>
+        <div id="page-subtitle" class="page-subtitle"></div>
+      </div>
+    </div>
+    <div id="page-body" class="page-body"></div>
+    <div id="page-footer" class="page-footer"></div>
+  </section>
+
+  <footer id="home-footer">
+    <div id="tabs-footer" class="footer-row">
+      <button id="close-duplicates" hidden data-i18n="closeDuplicates">Close duplicate tabs</button>
+      <div class="close-idle-bar">
+        <select id="idle-days" data-i18n-title="idleTitle" title="Pick an idle range first — the list then shows only those tabs">
+          <option value="all" selected data-i18n="idleAll">Select idle days</option>
+          <option value="1" data-i18n="idleOne">Idle 1 day</option>
+          <option value="2" data-i18n="idleTwo">Idle 2 days</option>
+          <option value="3" data-i18n="idleThree">Idle 3 days</option>
+        </select>
+        <button id="close-idle" class="danger" type="button" disabled data-i18n="closeIdle">Remove</button>
+      </div>
+    </div>
+    <div id="bookmarks-footer" class="footer-row" hidden>
+      <button id="new-folder" class="primary" type="button" data-i18n="newFolder">New folder</button>
+    </div>
+    <div id="selection-footer" class="footer-row selection-bar" hidden>
+      <span id="selection-count"></span>
+      <button id="selection-all" class="ghost-btn" type="button"></button>
+      <div id="selection-actions" class="selection-actions"></div>
+      <button id="selection-cancel" class="icon-btn small" type="button" aria-label="Cancel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" />
+        </svg>
+      </button>
     </div>
   </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="popup.js"></script>
 </body>

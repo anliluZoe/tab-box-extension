@@ -139,17 +139,17 @@ jobs:
           # 1) 本地安装用：外面套一层 tab-box/，解压即得可加载的文件夹
           rm -rf tab-box
           mkdir -p tab-box
-          cp manifest.json background.js popup.html popup.css popup.js README.md LICENSE tab-box/
+          cp manifest.json background.js popup.html popup.css popup.js quick-search.js quick-search.css quick-search.html README.md LICENSE tab-box/
           cp -R icons tab-box/icons
           cp -R _locales tab-box/_locales
           zip -r -X "$UNPACKED" tab-box -x "*.DS_Store"
 
           # 2) Edge 商店用：manifest.json 必须在 zip 根目录，不能有顶层文件夹
           #    文件清单与 scripts/build-store-package.ps1 保持一致
-          zip -r -X "$EDGE_STORE" manifest.json background.js popup.html popup.css popup.js LICENSE icons _locales -x "*.DS_Store"
+          zip -r -X "$EDGE_STORE" manifest.json background.js popup.html popup.css popup.js quick-search.js quick-search.css quick-search.html LICENSE icons _locales -x "*.DS_Store"
 
           # 3) Chrome Web Store 用：包结构与 Edge 相同，manifest.json 必须在根目录
-          zip -r -X "$CHROME_STORE" manifest.json background.js popup.html popup.css popup.js LICENSE icons _locales -x "*.DS_Store"
+          zip -r -X "$CHROME_STORE" manifest.json background.js popup.html popup.css popup.js quick-search.js quick-search.css quick-search.html LICENSE icons _locales -x "*.DS_Store"
 
           for STORE_PKG in "$EDGE_STORE" "$CHROME_STORE"; do
             STORE_NAME=$(basename "$STORE_PKG")

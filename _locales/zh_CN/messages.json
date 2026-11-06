@@ -3,7 +3,7 @@
     "message": "标签盒"
   },
   "extDesc": {
-    "message": "按域名合并标签页、快速搜索已打开的网页、按闲置天数清理标签页。支持 Chrome 与 Microsoft Edge。"
+    "message": "按域名合并标签页、搜索已打开的网页，并浏览、搜索和整理书签。支持 Chrome 与 Microsoft Edge。"
   },
   "brandSub": {
     "message": "把散落的标签页收进盒子"
@@ -20,8 +20,29 @@
   "themeDark": {
     "message": "深色"
   },
+  "tabsTitle": {
+    "message": "标签页管理"
+  },
+  "tabsSubtitle": {
+    "message": "管理当前打开的网页"
+  },
+  "bookmarksTitle": {
+    "message": "书签管理"
+  },
+  "bookmarksSubtitle": {
+    "message": "整理和管理已收藏的网页"
+  },
+  "switchToBookmarks": {
+    "message": "切换到书签"
+  },
+  "switchToTabs": {
+    "message": "切换到标签页"
+  },
   "searchPlaceholder": {
     "message": "搜索标题 / 网址 / 域名，↑↓ 选择，回车跳转"
+  },
+  "searchBookmarksPlaceholder": {
+    "message": "搜索书签、文件夹、网址或域名"
   },
   "groupToggleLabel": {
     "message": "按域名分组"
@@ -32,6 +53,12 @@
   "autoDedupe": {
     "message": "自动去重"
   },
+  "dedupeAction": {
+    "message": "去重"
+  },
+  "folderFilter": {
+    "message": "文件夹"
+  },
   "sortTitle": {
     "message": "只改变先后，按最后打开时间排"
   },
@@ -40,6 +67,56 @@
   },
   "sortStale": {
     "message": "最久未用优先"
+  },
+  "sortBookmarksRecent": {
+    "message": "最近添加"
+  },
+  "sortBookmarksTitle": {
+    "message": "名称"
+  },
+  "sortBookmarksTitleTip": {
+    "message": "只改变顺序，按最近添加或名称排列"
+  },
+  "selectMode": {
+    "message": "选择"
+  },
+  "selectGroup": {
+    "message": "选择本组"
+  },
+  "selectedCount": {
+    "message": "已选 $COUNT$ 项",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "selectAll": {
+    "message": "全选"
+  },
+  "clearAll": {
+    "message": "取消全选"
+  },
+  "saveSelected": {
+    "message": "收藏"
+  },
+  "closeSelected": {
+    "message": "关闭"
+  },
+  "moveSelected": {
+    "message": "移动"
+  },
+  "deleteSelected": {
+    "message": "删除"
+  },
+  "cancel": {
+    "message": "取消"
+  },
+  "done": {
+    "message": "完成"
+  },
+  "working": {
+    "message": "处理中…"
   },
   "closeDuplicates": {
     "message": "关闭重复标签页"
@@ -148,7 +225,7 @@
     }
   },
   "dupeBadgeTitle": {
-    "message": "还有相同网址的标签页"
+    "message": "还有相同网址的项目"
   },
   "todayCount": {
     "message": "今日 $COUNT$",
@@ -178,6 +255,20 @@
       },
       "dupes": {
         "content": "$4"
+      }
+    }
+  },
+  "summaryBookmarks": {
+    "message": "共 $TOTAL$ 个书签 · $FOLDERS$ 个文件夹 · 重复 $DUPES$ 个",
+    "placeholders": {
+      "total": {
+        "content": "$1"
+      },
+      "folders": {
+        "content": "$2"
+      },
+      "dupes": {
+        "content": "$3"
       }
     }
   },
@@ -220,6 +311,274 @@
   "confirmNothingDuplicates": {
     "message": "没有可关闭重复的标签页"
   },
+  "newFolder": {
+    "message": "新建文件夹"
+  },
+  "newFolderTitle": {
+    "message": "新建文件夹"
+  },
+  "folderNamePlaceholder": {
+    "message": "文件夹名称"
+  },
+  "folderParentLabel": {
+    "message": "创建位置"
+  },
+  "createFolder": {
+    "message": "创建"
+  },
+  "allBookmarks": {
+    "message": "全部书签"
+  },
+  "bookmarksRoot": {
+    "message": "书签"
+  },
+  "foldersSection": {
+    "message": "文件夹"
+  },
+  "bookmarksSection": {
+    "message": "书签"
+  },
+  "folderItems": {
+    "message": "$COUNT$ 项",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "folderEmpty": {
+    "message": "这个文件夹是空的"
+  },
+  "folderEmptyHint": {
+    "message": "收藏到这里的书签会显示在这个文件夹中。"
+  },
+  "bookmarksEmpty": {
+    "message": "还没有书签"
+  },
+  "bookmarksEmptySearch": {
+    "message": "没有匹配的书签"
+  },
+  "bookmarksUnavailable": {
+    "message": "书签数据不可用，请重新加载扩展。"
+  },
+  "loadMore": {
+    "message": "再显示 $COUNT$ 个",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "chooseSaveFolder": {
+    "message": "收藏到文件夹"
+  },
+  "chooseMoveFolder": {
+    "message": "移动到文件夹"
+  },
+  "browseFolder": {
+    "message": "浏览文件夹"
+  },
+  "folderPickerCount": {
+    "message": "已选 $COUNT$ 项",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "saveHereCount": {
+    "message": "收藏 $COUNT$ 项到此处",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "moveHereCount": {
+    "message": "移动 $COUNT$ 项到此处",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "browseHere": {
+    "message": "浏览此文件夹"
+  },
+  "confirmTitle": {
+    "message": "请确认"
+  },
+  "confirmRemoveDuplicates": {
+    "message": "移除重复项？"
+  },
+  "dedupeTabsTitle": {
+    "message": "重复标签页"
+  },
+  "dedupeBookmarksTitle": {
+    "message": "重复书签"
+  },
+  "dedupeGroups": {
+    "message": "$COUNT$ 组重复",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "dedupeNoneTitle": {
+    "message": "未发现重复项"
+  },
+  "dedupeNone": {
+    "message": "没有重复"
+  },
+  "dedupeNoneTabsText": {
+    "message": "当前没有网址相同的标签页。"
+  },
+  "dedupeNoneBookmarksText": {
+    "message": "当前没有网址相同的书签。"
+  },
+  "dedupeKeep": {
+    "message": "保留"
+  },
+  "dedupeKeepOne": {
+    "message": "每组至少保留一项。"
+  },
+  "dedupeConfirmTabs": {
+    "message": "将关闭 $COUNT$ 个重复标签页，已固定的标签页会保留。",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "dedupeConfirmBookmarks": {
+    "message": "将永久删除 $COUNT$ 个重复书签。",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmCloseTabsTitle": {
+    "message": "关闭标签页？"
+  },
+  "confirmCloseTabsBody": {
+    "message": "将关闭 $COUNT$ 个标签页。",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmDeleteBookmarksTitle": {
+    "message": "删除书签？"
+  },
+  "confirmDeleteBookmarksBody": {
+    "message": "将永久删除 $COUNT$ 个书签。",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmCloseGroupTitle": {
+    "message": "关闭本组？"
+  },
+  "confirmCloseGroupBody": {
+    "message": "将关闭 $HOST$ 下 $COUNT$ 个未固定的标签页。",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      },
+      "host": {
+        "content": "$2"
+      }
+    }
+  },
+  "confirmCloseIdleTitle": {
+    "message": "关闭闲置标签页？"
+  },
+  "confirmCloseIdleBody": {
+    "message": "将关闭 $COUNT$ 个近 $DAYS$ 天未访问的标签页。",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      },
+      "days": {
+        "content": "$2"
+      }
+    }
+  },
+  "resultTitle": {
+    "message": "操作结果"
+  },
+  "resultSubtitle": {
+    "message": "成功 $OK$ · 跳过 $SKIP$ · 失败 $FAIL$",
+    "placeholders": {
+      "ok": {
+        "content": "$1"
+      },
+      "skip": {
+        "content": "$2"
+      },
+      "fail": {
+        "content": "$3"
+      }
+    }
+  },
+  "resultSuccess": {
+    "message": "成功"
+  },
+  "resultSkipped": {
+    "message": "跳过"
+  },
+  "resultFailed": {
+    "message": "失败"
+  },
+  "retryFailed": {
+    "message": "重试失败项"
+  },
+  "retrying": {
+    "message": "正在重试…"
+  },
+  "resultClosedTabs": {
+    "message": "已关闭标签页"
+  },
+  "resultDeletedBookmarks": {
+    "message": "已删除书签"
+  },
+  "resultMovedBookmarks": {
+    "message": "已移动书签"
+  },
+  "resultSavedTabs": {
+    "message": "已收藏标签页"
+  },
+  "reasonMissing": {
+    "message": "目标已不存在"
+  },
+  "reasonPinned": {
+    "message": "已固定的标签页已保留"
+  },
+  "reasonDuplicate": {
+    "message": "相同网址已收藏"
+  },
+  "reasonSameFolder": {
+    "message": "已在目标文件夹中"
+  },
+  "reasonNoUrl": {
+    "message": "该标签页没有可收藏的网址"
+  },
+  "reasonUnknown": {
+    "message": "操作失败"
+  },
+  "andMore": {
+    "message": "还有 $COUNT$ 项",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
   "menuRoot": {
     "message": "标签盒"
   },
@@ -246,5 +605,77 @@
   },
   "menuCloseSameSiteAll": {
     "message": "关闭同域名全部标签页"
+  },
+  "back": {
+    "message": "返回"
+  },
+  "menuQuickSearch": {
+    "message": "快速搜索"
+  },
+  "quickSearchTitle": {
+    "message": "快速搜索"
+  },
+  "quickSearchTabs": {
+    "message": "标签页"
+  },
+  "quickSearchBookmarks": {
+    "message": "书签"
+  },
+  "quickSearchTabsPlaceholder": {
+    "message": "搜索标签页：标题、网址或域名"
+  },
+  "quickSearchBookmarksPlaceholder": {
+    "message": "搜索书签：标题、网址、域名或文件夹"
+  },
+  "quickSearchRecentTabs": {
+    "message": "最近访问"
+  },
+  "quickSearchRecentBookmarks": {
+    "message": "最近添加"
+  },
+  "quickSearchResults": {
+    "message": "搜索结果"
+  },
+  "quickSearchLoading": {
+    "message": "正在载入…"
+  },
+  "quickSearchNoTabs": {
+    "message": "没有打开的标签页"
+  },
+  "quickSearchNoBookmarks": {
+    "message": "还没有书签"
+  },
+  "quickSearchNoMatchTabs": {
+    "message": "没有匹配的标签页"
+  },
+  "quickSearchNoMatchBookmarks": {
+    "message": "没有匹配的书签"
+  },
+  "quickSearchEmptyHint": {
+    "message": "换个关键词试试"
+  },
+  "quickSearchCurrent": {
+    "message": "当前"
+  },
+  "quickSearchHintSelect": {
+    "message": "选择"
+  },
+  "quickSearchHintOpen": {
+    "message": "打开"
+  },
+  "quickSearchHintSwitch": {
+    "message": "切换标签页/书签"
+  },
+  "quickSearchHintClose": {
+    "message": "关闭"
+  },
+  "quickSearchLoadFailed": {
+    "message": "加载失败，点按重试"
+  },
+  "quickSearchActionFailed": {
+    "message": "打开失败，请重试"
+  },
+  "quickSearchClear": {
+    "message": "清空搜索"
   }
 }

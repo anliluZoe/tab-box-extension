@@ -3,11 +3,26 @@
   "default_locale": "en",
   "name": "__MSG_extName__",
   "description": "__MSG_extDesc__",
-  "version": "1.7.2",
-  "permissions": ["tabs", "tabGroups", "storage", "contextMenus"],
+  "version": "1.8.0",
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "storage",
+    "contextMenus",
+    "bookmarks",
+    "favicon",
+    "activeTab",
+    "scripting"
+  ],
   "background": {
     "service_worker": "background.js"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["quick-search.css", "_favicon/*"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -29,6 +44,12 @@
         "default": "Alt+T"
       },
       "description": "Open Tab Box"
+    },
+    "quick-search": {
+      "suggested_key": {
+        "default": "Alt+K"
+      },
+      "description": "Quick search tabs and bookmarks"
     }
   }
 }
