@@ -3,7 +3,7 @@
     "message": "Tab Box"
   },
   "extDesc": {
-    "message": "Group tabs by domain, search open pages, and clean up tabs left idle for days. Works in Chrome and Microsoft Edge."
+    "message": "Group and search open tabs, then browse, search and clean up your bookmarks. Works in Chrome and Microsoft Edge."
   },
   "brandSub": {
     "message": "Tuck scattered tabs into one box."
@@ -20,8 +20,29 @@
   "themeDark": {
     "message": "Dark"
   },
+  "tabsTitle": {
+    "message": "Tab manager"
+  },
+  "tabsSubtitle": {
+    "message": "Manage the pages you have open"
+  },
+  "bookmarksTitle": {
+    "message": "Bookmark manager"
+  },
+  "bookmarksSubtitle": {
+    "message": "Organize and manage saved pages"
+  },
+  "switchToBookmarks": {
+    "message": "Switch to bookmarks"
+  },
+  "switchToTabs": {
+    "message": "Switch to tabs"
+  },
   "searchPlaceholder": {
     "message": "Search title, URL or domain — ↑↓ to pick, Enter to open"
+  },
+  "searchBookmarksPlaceholder": {
+    "message": "Search bookmarks, folders, URL or domain"
   },
   "groupToggleLabel": {
     "message": "Group by domain"
@@ -32,6 +53,12 @@
   "autoDedupe": {
     "message": "Auto de-duplicate"
   },
+  "dedupeAction": {
+    "message": "De-duplicate"
+  },
+  "folderFilter": {
+    "message": "Folders"
+  },
   "sortTitle": {
     "message": "Changes the order only — sorted by when each tab was last opened"
   },
@@ -40,6 +67,56 @@
   },
   "sortStale": {
     "message": "Least recently used"
+  },
+  "sortBookmarksRecent": {
+    "message": "Recently added"
+  },
+  "sortBookmarksTitle": {
+    "message": "Name"
+  },
+  "sortBookmarksTitleTip": {
+    "message": "Changes the order only — newest saved or alphabetical"
+  },
+  "selectMode": {
+    "message": "Select"
+  },
+  "selectGroup": {
+    "message": "Select this group"
+  },
+  "selectedCount": {
+    "message": "$COUNT$ selected",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "selectAll": {
+    "message": "Select all"
+  },
+  "clearAll": {
+    "message": "Clear"
+  },
+  "saveSelected": {
+    "message": "Save"
+  },
+  "closeSelected": {
+    "message": "Close"
+  },
+  "moveSelected": {
+    "message": "Move"
+  },
+  "deleteSelected": {
+    "message": "Delete"
+  },
+  "cancel": {
+    "message": "Cancel"
+  },
+  "done": {
+    "message": "Done"
+  },
+  "working": {
+    "message": "Working…"
   },
   "closeDuplicates": {
     "message": "Close duplicate tabs"
@@ -148,7 +225,7 @@
     }
   },
   "dupeBadgeTitle": {
-    "message": "Another tab has the same URL"
+    "message": "Another item has the same URL"
   },
   "todayCount": {
     "message": "$COUNT$ today",
@@ -178,6 +255,20 @@
       },
       "dupes": {
         "content": "$4"
+      }
+    }
+  },
+  "summaryBookmarks": {
+    "message": "$TOTAL$ bookmarks · $FOLDERS$ folders · dupes: $DUPES$",
+    "placeholders": {
+      "total": {
+        "content": "$1"
+      },
+      "folders": {
+        "content": "$2"
+      },
+      "dupes": {
+        "content": "$3"
       }
     }
   },
@@ -220,6 +311,274 @@
   "confirmNothingDuplicates": {
     "message": "No duplicate tabs to close"
   },
+  "newFolder": {
+    "message": "New folder"
+  },
+  "newFolderTitle": {
+    "message": "New folder"
+  },
+  "folderNamePlaceholder": {
+    "message": "Folder name"
+  },
+  "folderParentLabel": {
+    "message": "Create inside"
+  },
+  "createFolder": {
+    "message": "Create"
+  },
+  "allBookmarks": {
+    "message": "All bookmarks"
+  },
+  "bookmarksRoot": {
+    "message": "Bookmarks"
+  },
+  "foldersSection": {
+    "message": "Folders"
+  },
+  "bookmarksSection": {
+    "message": "Bookmarks"
+  },
+  "folderItems": {
+    "message": "$COUNT$ items",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "folderEmpty": {
+    "message": "This folder is empty"
+  },
+  "folderEmptyHint": {
+    "message": "Bookmarks you save here will appear in this folder."
+  },
+  "bookmarksEmpty": {
+    "message": "No bookmarks yet"
+  },
+  "bookmarksEmptySearch": {
+    "message": "No matching bookmarks"
+  },
+  "bookmarksUnavailable": {
+    "message": "Bookmarks are unavailable — please reload the extension."
+  },
+  "loadMore": {
+    "message": "Show $COUNT$ more",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "chooseSaveFolder": {
+    "message": "Save tabs to folder"
+  },
+  "chooseMoveFolder": {
+    "message": "Move bookmarks to folder"
+  },
+  "browseFolder": {
+    "message": "Browse folders"
+  },
+  "folderPickerCount": {
+    "message": "$COUNT$ selected",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "saveHereCount": {
+    "message": "Save $COUNT$ here",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "moveHereCount": {
+    "message": "Move $COUNT$ here",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "browseHere": {
+    "message": "Browse this folder"
+  },
+  "confirmTitle": {
+    "message": "Please confirm"
+  },
+  "confirmRemoveDuplicates": {
+    "message": "Remove duplicates?"
+  },
+  "dedupeTabsTitle": {
+    "message": "Duplicate tabs"
+  },
+  "dedupeBookmarksTitle": {
+    "message": "Duplicate bookmarks"
+  },
+  "dedupeGroups": {
+    "message": "Groups with duplicate URLs: $COUNT$",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "dedupeNoneTitle": {
+    "message": "No duplicates found"
+  },
+  "dedupeNone": {
+    "message": "All clean"
+  },
+  "dedupeNoneTabsText": {
+    "message": "No two open tabs share the same URL."
+  },
+  "dedupeNoneBookmarksText": {
+    "message": "No two bookmarks share the same URL."
+  },
+  "dedupeKeep": {
+    "message": "Keep"
+  },
+  "dedupeKeepOne": {
+    "message": "Keep at least one item in each group."
+  },
+  "dedupeConfirmTabs": {
+    "message": "Tabs to close: $COUNT$. Pinned tabs are always kept.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "dedupeConfirmBookmarks": {
+    "message": "Bookmarks to delete: $COUNT$. This cannot be undone.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmCloseTabsTitle": {
+    "message": "Close tabs?"
+  },
+  "confirmCloseTabsBody": {
+    "message": "Tabs to close: $COUNT$.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmDeleteBookmarksTitle": {
+    "message": "Delete bookmarks?"
+  },
+  "confirmDeleteBookmarksBody": {
+    "message": "Bookmarks to delete: $COUNT$. This cannot be undone.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
+  "confirmCloseGroupTitle": {
+    "message": "Close this group?"
+  },
+  "confirmCloseGroupBody": {
+    "message": "$HOST$ · tabs to close: $COUNT$.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      },
+      "host": {
+        "content": "$2"
+      }
+    }
+  },
+  "confirmCloseIdleTitle": {
+    "message": "Close idle tabs?"
+  },
+  "confirmCloseIdleBody": {
+    "message": "Tabs idle for $DAYS$+ days to close: $COUNT$.",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      },
+      "days": {
+        "content": "$2"
+      }
+    }
+  },
+  "resultTitle": {
+    "message": "Result"
+  },
+  "resultSubtitle": {
+    "message": "$OK$ succeeded · $SKIP$ skipped · $FAIL$ failed",
+    "placeholders": {
+      "ok": {
+        "content": "$1"
+      },
+      "skip": {
+        "content": "$2"
+      },
+      "fail": {
+        "content": "$3"
+      }
+    }
+  },
+  "resultSuccess": {
+    "message": "Succeeded"
+  },
+  "resultSkipped": {
+    "message": "Skipped"
+  },
+  "resultFailed": {
+    "message": "Failed"
+  },
+  "retryFailed": {
+    "message": "Retry failed"
+  },
+  "retrying": {
+    "message": "Retrying…"
+  },
+  "resultClosedTabs": {
+    "message": "Closed tabs"
+  },
+  "resultDeletedBookmarks": {
+    "message": "Deleted bookmarks"
+  },
+  "resultMovedBookmarks": {
+    "message": "Moved bookmarks"
+  },
+  "resultSavedTabs": {
+    "message": "Saved tabs"
+  },
+  "reasonMissing": {
+    "message": "No longer exists"
+  },
+  "reasonPinned": {
+    "message": "Pinned tab was kept"
+  },
+  "reasonDuplicate": {
+    "message": "Duplicate URL already bookmarked"
+  },
+  "reasonSameFolder": {
+    "message": "Already in this folder"
+  },
+  "reasonNoUrl": {
+    "message": "This tab has no savable URL"
+  },
+  "reasonUnknown": {
+    "message": "Operation failed"
+  },
+  "andMore": {
+    "message": "and $COUNT$ more",
+    "placeholders": {
+      "count": {
+        "content": "$1"
+      }
+    }
+  },
   "menuRoot": {
     "message": "Tab Box"
   },
@@ -246,5 +605,77 @@
   },
   "menuCloseSameSiteAll": {
     "message": "Close all tabs of this site"
+  },
+  "back": {
+    "message": "Back"
+  },
+  "menuQuickSearch": {
+    "message": "Quick search"
+  },
+  "quickSearchTitle": {
+    "message": "Quick search"
+  },
+  "quickSearchTabs": {
+    "message": "Tabs"
+  },
+  "quickSearchBookmarks": {
+    "message": "Bookmarks"
+  },
+  "quickSearchTabsPlaceholder": {
+    "message": "Search tabs by title, URL or domain"
+  },
+  "quickSearchBookmarksPlaceholder": {
+    "message": "Search bookmarks by title, URL, domain or folder"
+  },
+  "quickSearchRecentTabs": {
+    "message": "Recently visited"
+  },
+  "quickSearchRecentBookmarks": {
+    "message": "Recently added"
+  },
+  "quickSearchResults": {
+    "message": "Search results"
+  },
+  "quickSearchLoading": {
+    "message": "Loading…"
+  },
+  "quickSearchNoTabs": {
+    "message": "No open tabs"
+  },
+  "quickSearchNoBookmarks": {
+    "message": "No bookmarks yet"
+  },
+  "quickSearchNoMatchTabs": {
+    "message": "No matching tabs"
+  },
+  "quickSearchNoMatchBookmarks": {
+    "message": "No matching bookmarks"
+  },
+  "quickSearchEmptyHint": {
+    "message": "Try another keyword"
+  },
+  "quickSearchCurrent": {
+    "message": "Current"
+  },
+  "quickSearchHintSelect": {
+    "message": "Select"
+  },
+  "quickSearchHintOpen": {
+    "message": "Open"
+  },
+  "quickSearchHintSwitch": {
+    "message": "Switch tabs/bookmarks"
+  },
+  "quickSearchHintClose": {
+    "message": "Close"
+  },
+  "quickSearchLoadFailed": {
+    "message": "Couldn't load. Click to retry"
+  },
+  "quickSearchActionFailed": {
+    "message": "Couldn't open it. Try again"
+  },
+  "quickSearchClear": {
+    "message": "Clear search"
   }
 }

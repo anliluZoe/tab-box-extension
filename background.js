@@ -196,6 +196,195 @@ async function openManager() {
   });
 }
 
+/* ------------------------------------------------------------------ *
+ * Quick Search: Alt+K opens an in-page palette on the current tab.
+ * Content scripts cannot touch chrome.tabs / chrome.bookmarks, so the
+ * palette asks this worker for data and for open actions.
+ * ------------------------------------------------------------------ */
+
+function quickSearchTabItem(tab) {
+  const url = tab.url || tab.pendingUrl || '';
+  return {
+    id: tab.id,
+    windowId: tab.windowId,
+    title: tab.title || '',
+    url,
+    lastAccessed: tab.lastAccessed || 0,
+    active: Boolean(tab.active),
+    favIconUrl: tab.favIconUrl || '',
+  };
+}
+
+async function quickSearchTabs() {
+  const tabs = await chrome.tabs.query({});
+  const ownBase = chrome.runtime.getURL('');
+  return tabs
+    .filter((tab) => {
+      const url = tab.url || tab.pendingUrl || '';
+      if (!HTTP_RE.test(url)) return false;
+      return !url.startsWith(ownBase);
+    })
+    .map(quickSearchTabItem);
+}
+
+function flattenQuickSearchBookmarks(node, path, out) {
+  if (!node) return;
+  if (node.url) {
+    if (/^javascript:/i.test(node.url)) return;
+    out.push({
+      id: node.id,
+      title: node.title || '',
+      url: node.url,
+      folder: path.join(' / '),
+      dateAdded: node.dateAdded || 0,
+    });
+    return;
+  }
+  const title = (node.title || '').trim();
+  const nextPath = title ? [...path, title] : path;
+  for (const child of node.children || []) {
+    flattenQuickSearchBookmarks(child, nextPath, out);
+  }
+}
+
+async function quickSearchBookmarks() {
+  const tree = await chrome.bookmarks.getTree();
+  const items = [];
+  if (tree && tree[0]) flattenQuickSearchBookmarks(tree[0], [], items);
+  return items;
+}
+
+async function quickSearchData(source) {
+  if (source === 'tabs') return quickSearchTabs();
+  if (source === 'bookmarks') return quickSearchBookmarks();
+  throw new Error(`Unknown quick search source: ${source}`);
+}
+
+async function openQuickSearchTarget(target) {
+  if (target?.kind === 'tab' && Number.isInteger(target.tabId)) {
+    await chrome.tabs.update(target.tabId, { active: true });
+    if (Number.isInteger(target.windowId)) {
+      await chrome.windows.update(target.windowId, { focused: true });
+    }
+    return;
+  }
+  if (target?.kind === 'bookmark' && typeof target.url === 'string' && target.url) {
+    const createProperties = { url: target.url, active: true };
+    if (Number.isInteger(target.windowId) && target.windowId > 0) {
+      try {
+        await chrome.tabs.create({ ...createProperties, windowId: target.windowId });
+        return;
+      } catch {
+        // The original window is gone; fall back to the current one.
+      }
+    }
+    await chrome.tabs.create(createProperties);
+    return;
+  }
+  throw new Error('Invalid quick search target');
+}
+
+async function quickSearchShortcut() {
+  try {
+    const commands = await chrome.commands.getAll();
+    const command = commands.find((item) => item.name === 'quick-search');
+    return command?.shortcut || '';
+  } catch {
+    return '';
+  }
+}
+
+// Restricted pages (chrome://, edge://, the Web Store, PDF viewer) cannot
+// host a content script. The palette then runs from quick-search.html in a
+// small popup window, but keeps the same UI and data.
+async function openQuickSearchFallback(target) {
+  const homeWindowId = Number.isInteger(target?.windowId) ? target.windowId : null;
+  const query = homeWindowId ? `?windowId=${homeWindowId}` : '';
+  try {
+    const win = await chrome.windows.create({
+      url: chrome.runtime.getURL(`quick-search.html${query}`),
+      type: 'popup',
+      width: 600,
+      height: 540,
+      focused: true,
+    });
+    // Chrome occasionally ignores width/height on create; re-apply so the
+    // palette stays a compact window.
+    if (win?.id != null) {
+      try {
+        await chrome.windows.update(win.id, { width: 600, height: 540, focused: true });
+      } catch {
+        // keep the browser's default size
+      }
+    }
+    return;
+  } catch (err) {
+    console.warn('快速搜索独立窗口打开失败:', err);
+  }
+  await openManager();
+}
+
+// Shortcut and context menu both land here. No content script is declared
+// in the manifest: the palette is injected on demand into the active tab
+// (activeTab is granted by commands / context menus), so the extension
+// never runs on pages the user did not ask about.
+async function openQuickSearchInTab(tab) {
+  let target = tab;
+  if (!target?.id) {
+    [target] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+  }
+  const url = target?.url || target?.pendingUrl || '';
+  if (!target?.id) {
+    await openManager();
+    return;
+  }
+
+  // Pressing the shortcut inside the standalone palette closes that window.
+  if (url.startsWith(chrome.runtime.getURL('quick-search.html'))) {
+    if (Number.isInteger(target.windowId)) {
+      try {
+        const win = await chrome.windows.get(target.windowId);
+        if (win.type === 'popup') {
+          await chrome.windows.remove(target.windowId);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return;
+  }
+
+  if (!HTTP_RE.test(url)) {
+    await openQuickSearchFallback(target);
+    return;
+  }
+
+  const message = { type: 'tabbox-quick-search-toggle' };
+
+  try {
+    const response = await chrome.tabs.sendMessage(target.id, message);
+    if (response?.ok) return;
+  } catch {
+    // No content script in this tab yet.
+  }
+
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: target.id },
+      files: ['quick-search.js'],
+    });
+    const response = await chrome.tabs.sendMessage(target.id, message);
+    if (response?.ok) return;
+  } catch (err) {
+    console.warn('快速搜索注入失败:', err);
+  }
+
+  // Injection failed even on an http(s) page (rare); the standalone
+  // window is still better than opening the full manager.
+  await openQuickSearchFallback(target);
+}
+
 async function applyGroup(windowId, host, tabs, existingGroups) {
   const tabIds = tabs.map((t) => t.id);
   if (tabIds.length < 2) return;
@@ -422,6 +611,7 @@ function setupContextMenus() {
 
       const items = [
         { id: 'open-manager', title: msg('menuOpen') },
+        { id: 'quick-search', title: msg('menuQuickSearch') },
         { id: 'group-by-domain', title: msg('menuGroup') },
         { id: 'close-duplicates', title: msg('menuCloseDuplicates') },
         { id: 'close-idle-1', title: msg('menuCloseIdle1') },
@@ -455,6 +645,9 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     switch (info.menuItemId) {
       case 'open-manager':
         await openManager();
+        break;
+      case 'quick-search':
+        await openQuickSearchInTab(tab);
         break;
       case 'group-by-domain':
         await groupByDomain();
@@ -498,7 +691,30 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       .catch((err) => sendResponse({ ok: false, error: String(err) }));
     return true;
   }
+  if (message?.type === 'tabbox-quick-search-data') {
+    quickSearchData(message.source)
+      .then((items) => sendResponse({ ok: true, items }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+  if (message?.type === 'tabbox-quick-search-open') {
+    openQuickSearchTarget(message.target)
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true;
+  }
+  if (message?.type === 'tabbox-quick-search-shortcut') {
+    quickSearchShortcut().then((shortcut) => sendResponse({ shortcut }));
+    return true;
+  }
   return false;
+});
+
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command !== 'quick-search') return;
+  openQuickSearchInTab(tab).catch((err) => {
+    console.warn('快速搜索打开失败:', err);
+  });
 });
 
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {

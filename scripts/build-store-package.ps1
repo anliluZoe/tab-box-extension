@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     打包扩展为可上传到 Chrome Web Store 或 Microsoft Edge 加载项商店的 zip。
 
@@ -36,7 +36,17 @@ $root = Split-Path -Parent $PSScriptRoot
 $manifestPath = Join-Path $root 'manifest.json'
 $manifest = [System.IO.File]::ReadAllText($manifestPath, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
 
-$files = @('manifest.json', 'background.js', 'popup.html', 'popup.css', 'popup.js', 'LICENSE')
+$files = @(
+    'manifest.json',
+    'background.js',
+    'popup.html',
+    'popup.css',
+    'popup.js',
+    'quick-search.js',
+    'quick-search.css',
+    'quick-search.html',
+    'LICENSE'
+)
 $dirs = @('icons', '_locales')
 
 $targets = switch ($Browser) {

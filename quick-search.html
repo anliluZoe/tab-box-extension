@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tab Box Quick Search</title>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(120% 80% at 10% 0%, #fff3e8, transparent 55%),
+        radial-gradient(100% 80% at 100% 4%, #e7f0ff, transparent 50%),
+        linear-gradient(165deg, #fff3e8, #e7f0ff);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      html,
+      body {
+        background:
+          radial-gradient(120% 80% at 10% 0%, rgba(74, 123, 232, 0.14), transparent 55%),
+          radial-gradient(100% 80% at 100% 4%, rgba(107, 147, 240, 0.1), transparent 50%),
+          linear-gradient(165deg, #1c2436, #0f141f);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!--
+    Standalone host for the Quick Search overlay. Used when the active page
+    cannot host a content script (chrome://, edge://, the Web Store, PDF
+    viewer). Same UI, same data sources, opened as a small popup window.
+  -->
+  <script src="quick-search.js"></script>
+</body>
+</html>
