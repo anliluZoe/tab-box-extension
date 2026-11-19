@@ -260,6 +260,16 @@ async function quickSearchData(source) {
   throw new Error(`Unknown quick search source: ${source}`);
 }
 
+function normalizeQuickSearchInputUrl(value) {
+  if (typeof value !== 'string' || !value || /\s/.test(value)) return '';
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+  } catch {
+    return '';
+  }
+}
+
 async function openQuickSearchTarget(target) {
   if (target?.kind === 'tab' && Number.isInteger(target.tabId)) {
     await chrome.tabs.update(target.tabId, { active: true });
@@ -268,8 +278,16 @@ async function openQuickSearchTarget(target) {
     }
     return;
   }
-  if (target?.kind === 'bookmark' && typeof target.url === 'string' && target.url) {
-    const createProperties = { url: target.url, active: true };
+  if (target?.kind === 'bookmark' || target?.kind === 'url') {
+    const url =
+      target.kind === 'url'
+        ? normalizeQuickSearchInputUrl(target.url)
+        : typeof target.url === 'string'
+          ? target.url
+          : '';
+    if (!url) throw new Error('Invalid quick search URL');
+
+    const createProperties = { url, active: true };
     if (Number.isInteger(target.windowId) && target.windowId > 0) {
       try {
         await chrome.tabs.create({ ...createProperties, windowId: target.windowId });

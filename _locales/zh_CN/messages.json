@@ -677,5 +677,8 @@
   },
   "quickSearchClear": {
     "message": "清空搜索"
+  },
+  "quickSearchOpenUrlHint": {
+    "message": "按 Enter 在新标签页中打开此网址"
   }
 }

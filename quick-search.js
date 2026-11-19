@@ -111,6 +111,34 @@
     }
   }
 
+  function normalizeInputUrl(value) {
+    const input = (value || '').trim();
+    // Ordinary search terms must stay searches; only explicit URLs, domains,
+    // localhost and IP addresses get the URL fallback on Enter.
+    if (!input || /\s/.test(input)) return '';
+    const scheme = input.match(/^[a-z][a-z\d+.-]*:/i);
+    // "localhost:3000" and "example.com:8080" are host/port pairs,
+    // not custom protocols.
+    const isHostPort = scheme && /^\d+(?:[/?#]|$)/.test(input.slice(scheme[0].length));
+    const hasScheme = Boolean(scheme && !isHostPort);
+    try {
+      const url = new URL(hasScheme ? input : `https://${input}`);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
+      if (!url.hostname) return '';
+      if (
+        !hasScheme &&
+        !url.hostname.includes('.') &&
+        url.hostname !== 'localhost' &&
+        !/^\[[\da-f:]+\]$/i.test(url.hostname)
+      ) {
+        return '';
+      }
+      return url.href;
+    } catch {
+      return '';
+    }
+  }
+
   function escapeRegExp(text) {
     return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
@@ -505,7 +533,16 @@
     });
 
     shadow.addEventListener('focusin', (event) => {
-      if (ui && event.target !== ui.input) ui.input.focus({ preventScroll: true });
+      if (!ui || event.target === ui.input) return;
+      // Chromium can focus a scroll container when its native scrollbar is
+      // dragged. Moving focus back synchronously cancels that drag.
+      if (event.target === ui.body) return;
+      ui.input.focus({ preventScroll: true });
+    });
+
+    shadow.addEventListener('pointerup', (event) => {
+      // Restore typing after the native scrollbar interaction has finished.
+      if (ui && event.target === ui.body) ui.input.focus({ preventScroll: true });
     });
 
     shadow.addEventListener('mouseover', (event) => {
@@ -690,10 +727,15 @@
 
     if (!matches.length) {
       selectedIndex = 0;
+      const inputUrl = tokens.length ? normalizeInputUrl(keyword) : '';
       ui.emptyText.textContent = tokens.length
         ? t(isTabs ? 'quickSearchNoMatchTabs' : 'quickSearchNoMatchBookmarks')
         : t(isTabs ? 'quickSearchNoTabs' : 'quickSearchNoBookmarks');
-      ui.emptyHint.textContent = tokens.length ? t('quickSearchEmptyHint') : '';
+      ui.emptyHint.textContent = inputUrl
+        ? t('quickSearchOpenUrlHint')
+        : tokens.length
+          ? t('quickSearchEmptyHint')
+          : '';
       ui.emptyHint.hidden = !tokens.length;
       ui.emptyState.hidden = false;
       return;
@@ -853,7 +895,7 @@
         break;
       case 'Enter':
         event.preventDefault();
-        openEntry(rows[selectedIndex]);
+        openEntry(rows[selectedIndex] || unmatchedUrlEntry());
         break;
       default:
         break;
@@ -866,25 +908,32 @@
     paintSelection(true);
   }
 
+  function unmatchedUrlEntry() {
+    if (rows.length || data[source.current].status !== 'ready') return null;
+    const url = normalizeInputUrl(keyword);
+    return url ? { kind: 'url', url } : null;
+  }
+
   async function openEntry(entry) {
     if (!entry || actionPending) return;
+
+    let target;
+    if (entry.kind === 'tab') {
+      target = { kind: 'tab', tabId: entry.id, windowId: entry.windowId };
+    } else if (entry.kind === 'bookmark' || entry.kind === 'url') {
+      target = {
+        kind: entry.kind,
+        url: entry.url,
+        // In standalone mode the palette lives in its own popup window;
+        // open the page in the window the user came from.
+        windowId: HOME_WINDOW_ID || undefined,
+      };
+    } else {
+      return;
+    }
+
     actionPending = true;
-    const message =
-      entry.kind === 'tab'
-        ? {
-            type: 'tabbox-quick-search-open',
-            target: { kind: 'tab', tabId: entry.id, windowId: entry.windowId },
-          }
-        : {
-            type: 'tabbox-quick-search-open',
-            target: {
-              kind: 'bookmark',
-              url: entry.url,
-              // In standalone mode the palette lives in its own popup window;
-              // open the page in the window the user came from.
-              windowId: HOME_WINDOW_ID || undefined,
-            },
-          };
+    const message = { type: 'tabbox-quick-search-open', target };
 
     try {
       const response = await request(message);
