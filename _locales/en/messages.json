@@ -677,5 +677,8 @@
   },
   "quickSearchClear": {
     "message": "Clear search"
+  },
+  "quickSearchOpenUrlHint": {
+    "message": "Press Enter to open this URL in a new tab"
   }
 }
